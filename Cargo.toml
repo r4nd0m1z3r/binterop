@@ -1,0 +1,5 @@
+[workspace]
+members = [
+    "binterop", "binterop-gen",
+]
+resolver = "2"

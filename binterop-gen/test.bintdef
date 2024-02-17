@@ -1,0 +1,16 @@
+struct Values {
+    a: u8,
+    b: u64,
+}
+
+enum Color {
+    Red,
+    Green,
+    Blue,
+}
+
+root struct RootStruct {
+    values: Values,
+    color: Color,
+    c: f32,
+}
