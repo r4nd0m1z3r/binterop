@@ -122,6 +122,7 @@ impl Generator {
             Token::DefBegin => {}
             Token::DefEnd => {
                 self.currently_defining = None;
+                self.current_offset = 0;
             }
             Token::Struct => {
                 self.currently_defining = Some(Type::Data);
@@ -170,7 +171,6 @@ impl Generator {
                 })()
                 .unwrap_or_else(|| panic!("Failed to find type with name {name:?}"));
 
-                dbg!(&self.schema.types[self.current_index]);
                 let new_field = self.schema.types[self.current_index]
                     .fields
                     .last_mut()
