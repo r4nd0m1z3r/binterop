@@ -26,8 +26,7 @@ struct Tokenizer<'a> {
 impl<'a> Tokenizer<'a> {
     pub fn new(text: &str) -> Self {
         let text_chunks = text
-            .replace('\n', " ")
-            .replace(',', " ")
+            .replace(['\n', ','], " ")
             .split(' ')
             .filter(|chunk| !chunk.is_empty())
             .map(|chunk| Cow::from(chunk.to_string()))
@@ -44,11 +43,7 @@ impl<'a> Tokenizer<'a> {
             return None;
         }
 
-        let chunk = if let Some(chunk) = self.text_chunks.pop_front() {
-            chunk
-        } else {
-            return None;
-        };
+        let chunk = self.text_chunks.pop_front()?;
 
         match chunk.borrow() {
             "root" => Some(Token::Root),
@@ -65,7 +60,7 @@ impl<'a> Tokenizer<'a> {
                         Some(Token::Ident(chunk))
                     }
                 } else {
-                    self.next_is_type = chunk.chars().last() == Some(':');
+                    self.next_is_type = chunk.ends_with(':');
                     Some(Token::Ident(
                         chunk
                             .strip_suffix(':')
@@ -173,7 +168,7 @@ impl Generator {
                     }
                     None
                 })()
-                .expect(&format!("Failed to find type with name {name:?}"));
+                .unwrap_or_else(|| panic!("Failed to find type with name {name:?}"));
 
                 dbg!(&self.schema.types[self.current_index]);
                 let new_field = self.schema.types[self.current_index]
@@ -211,7 +206,7 @@ fn main() {
     let mut args_iter = env::args();
     args_iter.next();
 
-    for path in args_iter.map(|path_string| PathBuf::from(path_string)) {
+    for path in args_iter.map(PathBuf::from) {
         match fs::read(&path) {
             Ok(data) => {
                 let definition_text = String::from_utf8_lossy(&data);
