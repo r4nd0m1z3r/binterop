@@ -1,6 +1,8 @@
 mod generator;
 mod tokenizer;
 
+use crate::generator::Generator;
+use crate::tokenizer::Tokenizer;
 use binterop::schema::Schema;
 use std::path::PathBuf;
 use std::{env, fs};
@@ -21,10 +23,9 @@ fn main() {
     args_iter.next();
 
     for path in args_iter.map(PathBuf::from) {
-        match fs::read(&path) {
-            Ok(data) => {
-                let definition_text = String::from_utf8_lossy(&data);
-                let schema = generate_schema(&definition_text);
+        match fs::read_to_string(&path) {
+            Ok(file_text) => {
+                let schema = generate_schema(&file_text);
                 let schema_serialized = serde_json::to_string(&schema);
 
                 if let Ok(data) = schema_serialized {

@@ -5,7 +5,7 @@ use binterop::schema::{Schema, Type};
 use binterop::types::{DataType, EnumType};
 
 #[derive(Debug, Default)]
-struct Generator {
+pub struct Generator {
     currently_defining: Option<Type>,
     should_create_type: bool,
     root_index: usize,
@@ -14,9 +14,7 @@ struct Generator {
     schema: Schema,
 }
 impl Generator {
-    fn feed(&mut self, token: Token) {
-        dbg!(&token);
-
+    pub(crate) fn feed(&mut self, token: Token) {
         match token {
             Token::Ident(ident) => {
                 assert!(
@@ -116,7 +114,7 @@ impl Generator {
         }
     }
 
-    fn get_schema(&mut self) -> Schema {
+    pub(crate) fn get_schema(&mut self) -> Schema {
         self.schema.root_type_index = self.root_index;
         self.schema.clone()
     }

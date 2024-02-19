@@ -1,7 +1,4 @@
-struct Values {
-    a: u8,
-    b: u64,
-}
+include values.bintdef
 
 enum Color {
     Red,

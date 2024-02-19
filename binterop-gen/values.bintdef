@@ -1,0 +1,4 @@
+struct Values {
+    a: u8,
+    b: u64,
+}
