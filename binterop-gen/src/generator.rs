@@ -15,6 +15,8 @@ pub struct Generator {
 }
 impl Generator {
     pub(crate) fn feed(&mut self, token: Token) {
+        dbg!(&token);
+
         match token {
             Token::Ident(ident) => {
                 assert!(
@@ -98,7 +100,11 @@ impl Generator {
                     }
                     None
                 })()
-                .unwrap_or_else(|| panic!("Failed to find type with name {name:?}"));
+                .unwrap_or_else(|| {
+                    let available_type_names = self.schema.types.iter().map(|data_type| data_type.name.clone()).collect::<Vec<_>>();
+                    let available_enum_names = self.schema.enums.iter().map(|enum_type| enum_type.name.clone()).collect::<Vec<_>>();
+                    panic!("Failed to find type with name {name:?}!\n\tAvailable types: {:?}\n\tAvailable enums: {:?}", available_type_names, available_enum_names)
+                });
 
                 let new_field = self.schema.types[self.current_index]
                     .fields
