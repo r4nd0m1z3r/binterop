@@ -14,7 +14,7 @@ pub enum Token<'a> {
 }
 
 pub struct Tokenizer<'a> {
-    current_include_chunks: Option<VecDeque<Cow<'a, str>>>,
+    include_chunks_queue: Vec<VecDeque<Cow<'a, str>>>,
     text_chunks: VecDeque<Cow<'a, str>>,
     next_is_type: bool,
 }
@@ -30,7 +30,7 @@ impl<'a> Tokenizer<'a> {
     fn match_chunk(&mut self, chunk: Cow<'a, str>) -> Option<Token> {
         match chunk.borrow() {
             "include" => {
-                let chunk_source = if let Some(chunks) = self.current_include_chunks.as_mut() {
+                let chunk_source = if let Some(chunks) = self.include_chunks_queue.last_mut() {
                     chunks
                 } else {
                     &mut self.text_chunks
@@ -40,18 +40,13 @@ impl<'a> Tokenizer<'a> {
                 let mut include_chunks = Self::prepare_text(&include_text);
                 let this_chunk = include_chunks.pop_front()?;
 
-                self.current_include_chunks = Some(include_chunks);
+                self.include_chunks_queue.push(include_chunks);
 
                 self.match_chunk(this_chunk)
             }
             "root" => Some(Token::Root),
             "{" => Some(Token::DefBegin),
-            "}" => {
-                if self.current_include_chunks.is_some() {
-                    self.current_include_chunks = None
-                }
-                Some(Token::DefEnd)
-            }
+            "}" => Some(Token::DefEnd),
             "struct" => Some(Token::Struct),
             "enum" => Some(Token::Enum),
             _ => {
@@ -76,7 +71,7 @@ impl<'a> Tokenizer<'a> {
 
     pub fn new(text: &str) -> Self {
         Self {
-            current_include_chunks: None,
+            include_chunks_queue: vec![],
             text_chunks: Self::prepare_text(text),
             next_is_type: false,
         }
@@ -87,8 +82,14 @@ impl<'a> Tokenizer<'a> {
             return None;
         }
 
-        let chunk_source = if self.current_include_chunks.is_some() {
-            self.current_include_chunks.as_mut()?
+        if let Some(chunks) = self.include_chunks_queue.last() {
+            if chunks.is_empty() {
+                self.include_chunks_queue.pop();
+            }
+        }
+
+        let chunk_source = if !self.include_chunks_queue.is_empty() {
+            self.include_chunks_queue.last_mut()?
         } else {
             &mut self.text_chunks
         };

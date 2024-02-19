@@ -15,8 +15,6 @@ pub struct Generator {
 }
 impl Generator {
     pub(crate) fn feed(&mut self, token: Token) {
-        dbg!(&token);
-
         match token {
             Token::Ident(ident) => {
                 assert!(
