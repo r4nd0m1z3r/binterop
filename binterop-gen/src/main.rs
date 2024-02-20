@@ -7,15 +7,15 @@ use binterop::schema::Schema;
 use std::path::PathBuf;
 use std::{env, fs};
 
-fn generate_schema(definition_text: &str) -> Schema {
+fn generate_schema(definition_text: &str) -> Result<Schema, String> {
     let mut tokenizer = Tokenizer::new(definition_text);
     let mut generator = Generator::default();
 
-    while let Some(token) = tokenizer.yield_token() {
-        generator.feed(token);
+    while let Some(token) = tokenizer.yield_token()? {
+        generator.feed(token)?
     }
 
-    generator.get_schema()
+    Ok(generator.get_schema())
 }
 
 fn main() {
@@ -25,7 +25,14 @@ fn main() {
     for path in args_iter.map(PathBuf::from) {
         match fs::read_to_string(&path) {
             Ok(file_text) => {
-                let schema = generate_schema(&file_text);
+                let schema = match generate_schema(&file_text) {
+                    Ok(schema) => schema,
+                    Err(err) => {
+                        eprintln!("{path:?}: {err}");
+                        continue;
+                    }
+                };
+
                 let schema_serialized = serde_json::to_string(&schema);
 
                 if let Ok(data) = schema_serialized {
@@ -39,7 +46,7 @@ fn main() {
                     eprintln!("Failed to serialize {path:?} schema!");
                 }
             }
-            Err(err) => eprintln!("Failed to load file from {path:?}! Error: {err:?}"),
+            Err(err) => eprintln!("{path:?}: {err:?}"),
         }
     }
 }

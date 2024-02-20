@@ -14,7 +14,7 @@ pub struct Generator {
     schema: Schema,
 }
 impl Generator {
-    pub(crate) fn feed(&mut self, token: Token) {
+    pub(crate) fn feed(&mut self, token: Token) -> Result<(), String> {
         match token {
             Token::Ident(ident) => {
                 assert!(
@@ -97,12 +97,11 @@ impl Generator {
                         return Some((index, Type::Enum, type_size));
                     }
                     None
-                })()
-                .unwrap_or_else(|| {
+                })().ok_or_else(|| {
                     let available_type_names = self.schema.types.iter().map(|data_type| data_type.name.clone()).collect::<Vec<_>>();
                     let available_enum_names = self.schema.enums.iter().map(|enum_type| enum_type.name.clone()).collect::<Vec<_>>();
-                    panic!("Failed to find type with name {name:?}!\n\tAvailable types: {:?}\n\tAvailable enums: {:?}", available_type_names, available_enum_names)
-                });
+                    format!("Failed to find type with name {name:?}!\n\tAvailable types: {:?}\n\tAvailable enums: {:?}", available_type_names, available_enum_names)
+                })?;
 
                 let new_field = self.schema.types[self.current_index]
                     .fields
@@ -116,6 +115,8 @@ impl Generator {
                 self.current_offset += type_size;
             }
         }
+
+        Ok(())
     }
 
     pub(crate) fn get_schema(&mut self) -> Schema {

@@ -27,7 +27,7 @@ impl<'a> Tokenizer<'a> {
             .collect()
     }
 
-    fn match_chunk(&mut self, chunk: Cow<'a, str>) -> Option<Token> {
+    fn match_chunk(&mut self, chunk: Cow<'a, str>) -> Result<Option<Token>, String> {
         match chunk.borrow() {
             "include" => {
                 let chunk_source = if let Some(chunks) = self.include_chunks_queue.last_mut() {
@@ -36,37 +36,35 @@ impl<'a> Tokenizer<'a> {
                     &mut self.text_chunks
                 };
 
-                let path = chunk_source.pop_front()?;
-                let include_text = fs::read_to_string(path.as_ref()).unwrap_or_else(|err| {
-                    panic!("Failed to open include file at {path:?}! Error: {err:?}")
-                });
+                let path = chunk_source.pop_front().ok_or("No path token after include was found!")?;
+                let include_text = fs::read_to_string(path.as_ref()).map_err(|err| err.to_string())?;
                 let mut include_chunks = Self::prepare_text(&include_text);
-                let this_chunk = include_chunks.pop_front()?;
+                let this_chunk = include_chunks.pop_front().ok_or(format!("Include file {path:?} contains no tokens!"))?;
 
                 self.include_chunks_queue.push(include_chunks);
 
                 self.match_chunk(this_chunk)
             }
-            "root" => Some(Token::Root),
-            "{" => Some(Token::DefBegin),
-            "}" => Some(Token::DefEnd),
-            "struct" => Some(Token::Struct),
-            "enum" => Some(Token::Enum),
+            "root" => Ok(Some(Token::Root)),
+            "{" => Ok(Some(Token::DefBegin)),
+            "}" => Ok(Some(Token::DefEnd)),
+            "struct" => Ok(Some(Token::Struct)),
+            "enum" => Ok(Some(Token::Enum)),
             _ => {
                 if chunk.chars().all(char::is_alphanumeric) {
                     if self.next_is_type {
                         self.next_is_type = false;
-                        Some(Token::Type(chunk))
+                        Ok(Some(Token::Type(chunk)))
                     } else {
-                        Some(Token::Ident(chunk))
+                        Ok(Some(Token::Ident(chunk)))
                     }
                 } else {
                     self.next_is_type = chunk.ends_with(':');
-                    Some(Token::Ident(
+                    Ok(Some(Token::Ident(
                         chunk
                             .strip_suffix(':')
-                            .map(|chunk| Cow::from(chunk.to_owned()))?,
-                    ))
+                            .map(|chunk| Cow::from(chunk.to_owned())).ok_or(format!("Expected field ident but got {chunk:?}"))?,
+                    )))
                 }
             }
         }
@@ -80,9 +78,9 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
-    pub fn yield_token(&mut self) -> Option<Token> {
+    pub fn yield_token(&mut self) -> Result<Option<Token>, String> {
         if self.text_chunks.is_empty() {
-            return None;
+            return Ok(None);
         }
 
         if let Some(chunks) = self.include_chunks_queue.last() {
@@ -92,12 +90,12 @@ impl<'a> Tokenizer<'a> {
         }
 
         let chunk_source = if !self.include_chunks_queue.is_empty() {
-            self.include_chunks_queue.last_mut()?
+            self.include_chunks_queue.last_mut().unwrap()
         } else {
             &mut self.text_chunks
         };
 
-        let chunk = chunk_source.pop_front()?;
+        let chunk = chunk_source.pop_front().unwrap();
         self.match_chunk(chunk)
     }
 }
