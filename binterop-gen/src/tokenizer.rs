@@ -20,7 +20,7 @@ pub struct Tokenizer<'a> {
 }
 impl<'a> Tokenizer<'a> {
     fn prepare_text(text: &str) -> VecDeque<Cow<'a, str>> {
-        text.replace(['\n', ','], " ")
+        text.replace(['\n', '\r', ','], " ")
             .split(' ')
             .filter(|chunk| !chunk.is_empty())
             .map(|chunk| Cow::from(chunk.to_string()))
@@ -36,7 +36,10 @@ impl<'a> Tokenizer<'a> {
                     &mut self.text_chunks
                 };
 
-                let include_text = fs::read_to_string(chunk_source.pop_front()?.as_ref()).ok()?;
+                let path = chunk_source.pop_front()?;
+                let include_text = fs::read_to_string(path.as_ref()).unwrap_or_else(|err| {
+                    panic!("Failed to open include file at {path:?}! Error: {err:?}")
+                });
                 let mut include_chunks = Self::prepare_text(&include_text);
                 let this_chunk = include_chunks.pop_front()?;
 
