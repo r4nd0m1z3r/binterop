@@ -35,15 +35,16 @@ fn main() {
 
                 let schema_serialized = serde_json::to_string(&schema);
 
-                if let Ok(data) = schema_serialized {
-                    let output_path = path.with_extension("json");
-                    if let Err(err) = fs::write(&output_path, data) {
-                        eprintln!("Failed to write serialized schema for {path:?}! Error: {err:?}");
-                    } else {
-                        println!("{path:?} -> {output_path:?}");
+                match schema_serialized {
+                    Ok(data) => {
+                        let output_path = path.with_extension("json");
+                        if let Err(err) = fs::write(&output_path, data) {
+                            eprintln!("{path:?}: Failed to write serialized schema to {output_path:?}! Error: {err:?}");
+                        } else {
+                            println!("{path:?} -> {output_path:?}");
+                        }
                     }
-                } else {
-                    eprintln!("Failed to serialize {path:?} schema!");
+                    Err(err) => eprintln!("{path:?}: Failed to serialize schema! Error: {err:?}"),
                 }
             }
             Err(err) => eprintln!("{path:?}: {err:?}"),
