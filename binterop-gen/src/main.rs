@@ -7,8 +7,8 @@ use binterop::schema::Schema;
 use std::path::PathBuf;
 use std::{env, fs};
 
-fn generate_schema(definition_text: &str) -> Result<Schema, String> {
-    let mut tokenizer = Tokenizer::new(definition_text);
+fn generate_schema(file_path: Option<PathBuf>, definition_text: &str) -> Result<Schema, String> {
+    let mut tokenizer = Tokenizer::new(file_path, definition_text);
     let mut generator = Generator::default();
 
     while let Some(token) = tokenizer.yield_token()? {
@@ -22,10 +22,10 @@ fn main() {
     let mut args_iter = env::args();
     args_iter.next();
 
-    for path in args_iter.map(PathBuf::from) {
+    for path in args_iter.map(PathBuf::from).flat_map(fs::canonicalize) {
         match fs::read_to_string(&path) {
             Ok(file_text) => {
-                let schema = match generate_schema(&file_text) {
+                let schema = match generate_schema(Some(path.clone()), &file_text) {
                     Ok(schema) => schema,
                     Err(err) => {
                         eprintln!("{path:?}: {err}");

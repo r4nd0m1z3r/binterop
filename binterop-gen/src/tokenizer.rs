@@ -1,6 +1,7 @@
 use std::borrow::{Borrow, Cow};
 use std::collections::VecDeque;
 use std::fs;
+use std::path::PathBuf;
 
 #[derive(Clone, Debug)]
 pub enum Token<'a> {
@@ -14,6 +15,7 @@ pub enum Token<'a> {
 }
 
 pub struct Tokenizer<'a> {
+    file_path: Option<PathBuf>,
     include_chunks_queue: Vec<VecDeque<Cow<'a, str>>>,
     text_chunks: VecDeque<Cow<'a, str>>,
     next_is_type: bool,
@@ -36,10 +38,24 @@ impl<'a> Tokenizer<'a> {
                     &mut self.text_chunks
                 };
 
-                let path = chunk_source.pop_front().ok_or("No path token after include was found!")?;
-                let include_text = fs::read_to_string(path.as_ref()).map_err(|err| err.to_string())?;
+                let relative_path = chunk_source
+                    .pop_front()
+                    .ok_or("No path token after include was found!")?;
+                let path = if let Some(path) = self.file_path.as_ref() {
+                    let mut new_path = path.parent().unwrap().to_path_buf();
+
+                    new_path.push(relative_path.as_ref());
+                    new_path
+                } else {
+                    PathBuf::from(relative_path.as_ref())
+                };
+
+                let include_text = fs::read_to_string(&path)
+                    .map_err(|err| format!("Failed to read include {path:?}! Error: {err:?}"))?;
                 let mut include_chunks = Self::prepare_text(&include_text);
-                let this_chunk = include_chunks.pop_front().ok_or(format!("Include file {path:?} contains no tokens!"))?;
+                let this_chunk = include_chunks
+                    .pop_front()
+                    .ok_or(format!("Include file {path:?} contains no tokens!"))?;
 
                 self.include_chunks_queue.push(include_chunks);
 
@@ -63,15 +79,17 @@ impl<'a> Tokenizer<'a> {
                     Ok(Some(Token::Ident(
                         chunk
                             .strip_suffix(':')
-                            .map(|chunk| Cow::from(chunk.to_owned())).ok_or(format!("Expected field ident but got {chunk:?}"))?,
+                            .map(|chunk| Cow::from(chunk.to_owned()))
+                            .ok_or(format!("Expected field ident but got {chunk:?}"))?,
                     )))
                 }
             }
         }
     }
 
-    pub fn new(text: &str) -> Self {
+    pub fn new(file_path: Option<PathBuf>, text: &str) -> Self {
         Self {
+            file_path,
             include_chunks_queue: vec![],
             text_chunks: Self::prepare_text(text),
             next_is_type: false,
