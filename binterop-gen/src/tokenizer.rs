@@ -48,7 +48,9 @@ impl<'a> Tokenizer<'a> {
                     new_path
                 } else {
                     PathBuf::from(relative_path.as_ref())
-                };
+                }
+                .canonicalize()
+                .map_err(|err| format!("Failed to canonicalize include path! Error: {err:?}"))?;
 
                 let include_text = fs::read_to_string(&path)
                     .map_err(|err| format!("Failed to read include {path:?}! Error: {err:?}"))?;
