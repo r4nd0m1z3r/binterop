@@ -14,39 +14,98 @@ pub struct Generator {
     schema: Schema,
 }
 impl Generator {
+    fn process_ident(&mut self, ident: &str) -> Result<(), &str> {
+        if self.currently_defining.is_none() {
+            return Err("Got ident while not defining anything!");
+        }
+
+        if self.should_create_type {
+            match self.currently_defining.as_ref().unwrap() {
+                Type::Data => {
+                    self.current_index = self.schema.types.len();
+                    self.schema.types.push(DataType::default_with_name(ident))
+                }
+                Type::Enum => {
+                    self.current_index = self.schema.enums.len();
+                    self.schema.enums.push(EnumType::default_with_name(ident))
+                }
+                _ => {}
+            }
+            self.should_create_type = false;
+        } else {
+            match self.currently_defining.as_ref().unwrap() {
+                Type::Data => self.schema.types[self.current_index]
+                    .fields
+                    .push(Field::default_with_name(ident)),
+                Type::Enum => self.schema.enums[self.current_index]
+                    .variants
+                    .push(ident.to_string()),
+                _ => {}
+            }
+        }
+
+        Ok(())
+    }
+
+    fn process_type(&mut self, name: &str) -> Result<(), String> {
+        let (type_index, r#type, type_size) = (|| {
+            if let Some(index) = PRIMITIVES
+                .into_iter()
+                .enumerate()
+                .find(|(_, (_, primitive))| primitive.name == name)
+                .map(|(index, (_, _))| index)
+            {
+                let type_size = PRIMITIVES.index(index).map(|(_, v)| v.size).unwrap();
+                return Some((index, Type::Primitive, type_size));
+            }
+
+            if let Some(index) = self
+                .schema
+                .types
+                .iter()
+                .enumerate()
+                .find(|(_, data_type)| data_type.name == name)
+                .map(|(index, _)| index)
+            {
+                let type_size = self.schema.types[index].size(&self.schema);
+                return Some((index, Type::Data, type_size));
+            }
+
+            if let Some(index) = self
+                .schema
+                .enums
+                .iter()
+                .enumerate()
+                .find(|(_, enum_type)| enum_type.name == *name)
+                .map(|(index, _)| index)
+            {
+                let type_size = self.schema.enums[index].size();
+                return Some((index, Type::Enum, type_size));
+            }
+            None
+        })().ok_or_else(|| {
+            let available_type_names = self.schema.types.iter().map(|data_type| data_type.name.clone()).collect::<Vec<_>>();
+            let available_enum_names = self.schema.enums.iter().map(|enum_type| enum_type.name.clone()).collect::<Vec<_>>();
+            format!("Failed to find type with name {name:?}!\n\tAvailable types: {:?}\n\tAvailable enums: {:?}", available_type_names, available_enum_names)
+        })?;
+
+        let new_field = self.schema.types[self.current_index]
+            .fields
+            .last_mut()
+            .unwrap();
+
+        new_field.r#type = r#type;
+        new_field.type_index = type_index;
+        new_field.offset = self.current_offset;
+
+        self.current_offset += type_size;
+
+        Ok(())
+    }
+
     pub(crate) fn feed(&mut self, token: Token) -> Result<(), String> {
         match token {
-            Token::Ident(ident) => {
-                assert!(
-                    self.currently_defining.is_some(),
-                    "Got ident while not defining anything!"
-                );
-
-                if self.should_create_type {
-                    match self.currently_defining.as_ref().unwrap() {
-                        Type::Data => {
-                            self.current_index = self.schema.types.len();
-                            self.schema.types.push(DataType::default_with_name(&ident))
-                        }
-                        Type::Enum => {
-                            self.current_index = self.schema.enums.len();
-                            self.schema.enums.push(EnumType::default_with_name(&ident))
-                        }
-                        _ => {}
-                    }
-                    self.should_create_type = false;
-                } else {
-                    match self.currently_defining.as_ref().unwrap() {
-                        Type::Data => self.schema.types[self.current_index]
-                            .fields
-                            .push(Field::default_with_name(&ident)),
-                        Type::Enum => self.schema.enums[self.current_index]
-                            .variants
-                            .push(ident.to_string()),
-                        _ => {}
-                    }
-                }
-            }
+            Token::Ident(ident) => self.process_ident(&ident)?,
             Token::Root => self.root_index = self.current_index,
             Token::DefBegin => {}
             Token::DefEnd => {
@@ -61,59 +120,7 @@ impl Generator {
                 self.currently_defining = Some(Type::Enum);
                 self.should_create_type = true;
             }
-            Token::Type(name) => {
-                let (type_index, r#type, type_size) = (|| {
-                    if let Some(index) = PRIMITIVES
-                        .into_iter()
-                        .enumerate()
-                        .find(|(_, (_, primitive))| primitive.name == name)
-                        .map(|(index, (_, _))| index)
-                    {
-                        let type_size = PRIMITIVES.index(index).map(|(_, v)| v.size).unwrap();
-                        return Some((index, Type::Primitive, type_size));
-                    }
-
-                    if let Some(index) = self
-                        .schema
-                        .types
-                        .iter()
-                        .enumerate()
-                        .find(|(_, data_type)| data_type.name == name)
-                        .map(|(index, _)| index)
-                    {
-                        let type_size = self.schema.types[index].size(&self.schema);
-                        return Some((index, Type::Data, type_size));
-                    }
-
-                    if let Some(index) = self
-                        .schema
-                        .enums
-                        .iter()
-                        .enumerate()
-                        .find(|(_, enum_type)| enum_type.name == *name)
-                        .map(|(index, _)| index)
-                    {
-                        let type_size = self.schema.enums[index].size();
-                        return Some((index, Type::Enum, type_size));
-                    }
-                    None
-                })().ok_or_else(|| {
-                    let available_type_names = self.schema.types.iter().map(|data_type| data_type.name.clone()).collect::<Vec<_>>();
-                    let available_enum_names = self.schema.enums.iter().map(|enum_type| enum_type.name.clone()).collect::<Vec<_>>();
-                    format!("Failed to find type with name {name:?}!\n\tAvailable types: {:?}\n\tAvailable enums: {:?}", available_type_names, available_enum_names)
-                })?;
-
-                let new_field = self.schema.types[self.current_index]
-                    .fields
-                    .last_mut()
-                    .unwrap();
-
-                new_field.r#type = r#type;
-                new_field.type_index = type_index;
-                new_field.offset = self.current_offset;
-
-                self.current_offset += type_size;
-            }
+            Token::Type(name) => self.process_type(&name)?,
         }
 
         Ok(())
