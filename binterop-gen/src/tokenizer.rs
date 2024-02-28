@@ -11,6 +11,7 @@ pub enum Token<'a> {
     DefEnd,
     Struct,
     Enum,
+    Union,
     Type(Cow<'a, str>),
 }
 
@@ -68,6 +69,7 @@ impl<'a> Tokenizer<'a> {
             "}" => Ok(Some(Token::DefEnd)),
             "struct" => Ok(Some(Token::Struct)),
             "enum" => Ok(Some(Token::Enum)),
+            "union" => Ok(Some(Token::Union)),
             _ => {
                 if chunk.chars().all(char::is_alphanumeric) {
                     if self.next_is_type {

@@ -1,4 +1,3 @@
-use crate::primitives::PRIMITIVES;
 use crate::schema::{Schema, Type};
 use serde::{Deserialize, Serialize};
 
@@ -29,13 +28,6 @@ impl Field {
     }
 
     pub fn size(&self, schema: &Schema) -> usize {
-        match self.r#type {
-            Type::Primitive => PRIMITIVES
-                .index(self.type_index)
-                .map(|(_, t)| t.size)
-                .unwrap(),
-            Type::Data => schema.types[self.type_index].size(schema),
-            Type::Enum => schema.enums[self.type_index].size(),
-        }
+        schema.type_size(self.type_index, self.r#type)
     }
 }
