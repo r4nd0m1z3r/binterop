@@ -1,0 +1,11 @@
+struct SomeOtherType {
+    a: f64
+}
+
+struct SomeStruct {
+    some_uint: u16,
+    some_int: i64,
+    some_bool: bool,
+    some_float: f32,
+    some_other_type: SomeOtherType,
+}

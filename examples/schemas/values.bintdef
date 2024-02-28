@@ -1,9 +1,0 @@
-struct Values {
-    a: u8,
-    b: u64,
-}
-
-enum SomeEnum {
-    A,
-    B
-}

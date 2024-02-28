@@ -1,5 +1,0 @@
-include test.bintdef
-
-struct Container {
-    root_struct: RootStruct,
-}

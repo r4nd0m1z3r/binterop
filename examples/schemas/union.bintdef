@@ -1,0 +1,7 @@
+include enum.bintdef
+include struct.bintdef
+
+union SomeUnion {
+    Color,
+    SomeStruct,
+}
