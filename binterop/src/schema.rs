@@ -55,7 +55,7 @@ impl Schema {
             .find(|(_, data_type)| data_type.name == name)
             .map(|(index, _)| index)
         {
-            let type_size = self.types[index].size(self);
+            let type_size = self.type_size(index, Type::Data);
             return Ok((index, Type::Data, type_size));
         }
 
@@ -66,7 +66,7 @@ impl Schema {
             .find(|(_, enum_type)| enum_type.name == *name)
             .map(|(index, _)| index)
         {
-            let type_size = self.enums[index].size();
+            let type_size = self.type_size(index, Type::Enum);
             return Ok((index, Type::Enum, type_size));
         }
 
@@ -77,7 +77,7 @@ impl Schema {
             .find(|(_, union_type)| union_type.name == *name)
             .map(|(index, _)| index)
         {
-            let type_size = self.unions[index].size(self);
+            let type_size = self.type_size(index, Type::Union);
             return Ok((index, Type::Union, type_size));
         }
 
