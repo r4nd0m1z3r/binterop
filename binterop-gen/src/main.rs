@@ -1,7 +1,10 @@
 mod generator;
+mod language_generators;
 mod tokenizer;
 
 use crate::generator::Generator;
+use crate::language_generators::c_gen::CGenerator;
+use crate::language_generators::LanguageGenerator;
 use crate::tokenizer::Tokenizer;
 use binterop::schema::Schema;
 use std::path::PathBuf;
@@ -15,7 +18,19 @@ fn generate_schema(file_path: Option<PathBuf>, definition_text: &str) -> Result<
         generator.feed(token)?
     }
 
-    Ok(generator.get_schema())
+    Ok(generator.output())
+}
+
+fn generate_lang_files(gen_name: &str, schema: &Schema) -> Result<(String, String), String> {
+    match gen_name {
+        "c" => {
+            let mut generator = CGenerator::default();
+            generator.feed(schema);
+
+            Ok((generator.output_extension(), generator.output()))
+        }
+        _ => Err(format!("Unknown language generator name: {gen_name}")),
+    }
 }
 
 fn main() {
@@ -48,6 +63,25 @@ fn main() {
                         }
                     }
                     Err(err) => eprintln!("{path:?}: Failed to serialize schema! Error: {err:?}"),
+                }
+
+                if let Some(gen_name) = env::args()
+                    .filter_map(|arg| arg.strip_prefix("--gen=").map(ToString::to_string))
+                    .next()
+                {
+                    match generate_lang_files(&gen_name, &schema) {
+                        Ok((ext, output)) => match fs::write(path.with_extension(ext), output) {
+                            Ok(_) => println!(
+                                "{path:?}: Generated language files using {gen_name} generator."
+                            ),
+                            Err(err) => eprintln!(
+                                "{path:?}: Failed to write generated language file! Error: {err}"
+                            ),
+                        },
+                        Err(err) => {
+                            eprintln!("{path:?}: Failed to generate language files! Error: {err}");
+                        }
+                    }
                 }
             }
             Err(err) => eprintln!("{path:?}: {err:?}"),
