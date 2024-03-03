@@ -145,7 +145,7 @@ impl Generator {
         Ok(())
     }
 
-    pub(crate) fn get_schema(&mut self) -> Schema {
+    pub(crate) fn output(&mut self) -> Schema {
         self.schema.root_type_index = self.root_index;
         self.schema.clone()
     }

@@ -19,10 +19,13 @@ fn generate_schema(file_path: Option<PathBuf>, definition_text: &str) -> Result<
 }
 
 fn main() {
-    let mut args_iter = env::args();
-    args_iter.next();
+    let args_iter = env::args();
 
-    for path in args_iter.map(PathBuf::from).flat_map(fs::canonicalize) {
+    for path in args_iter
+        .skip(1)
+        .map(PathBuf::from)
+        .flat_map(fs::canonicalize)
+    {
         match fs::read_to_string(&path) {
             Ok(file_text) => {
                 let schema = match generate_schema(Some(path.clone()), &file_text) {

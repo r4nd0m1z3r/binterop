@@ -33,6 +33,15 @@ impl Schema {
         }
     }
 
+    pub fn type_name(&self, index: usize, r#type: Type) -> String {
+        match r#type {
+            Type::Primitive => PRIMITIVES.name_of(index).unwrap().to_string(),
+            Type::Data => self.types[index].name.clone(),
+            Type::Enum => self.enums[index].name.clone(),
+            Type::Union => self.unions[index].name.clone(),
+        }
+    }
+
     pub fn type_size(&self, index: usize, r#type: Type) -> usize {
         match r#type {
             Type::Primitive => PRIMITIVES.index(index).unwrap().size,
