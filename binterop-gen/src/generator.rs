@@ -119,7 +119,7 @@ impl Generator {
                     _ => false,
                 };
             }
-            Token::Root => self.root_index = self.current_index,
+            Token::Root => self.root_index = self.schema.types.len(),
             Token::DefBegin => {
                 self.next_is_repr_type = false;
             }
