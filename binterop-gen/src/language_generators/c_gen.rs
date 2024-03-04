@@ -1,9 +1,11 @@
 use crate::language_generators::LanguageGenerator;
-use binterop::schema::Schema;
-use binterop::types::DataType;
+use binterop::schema::{Schema, Type};
+use binterop::types::{DataType, EnumType, UnionType};
+use case::CaseExt;
 
 #[derive(Default, Debug)]
 pub struct CGenerator {
+    generated_type_names: Vec<String>,
     output: String,
 }
 impl CGenerator {
@@ -40,14 +42,61 @@ impl CGenerator {
         self.output.push_str(&fields_text);
         self.output.push_str(&format!("}} {};\n\n", data_type.name));
     }
+
+    fn generate_enum_type(&mut self, enum_type: &EnumType) {
+        let mut variants_text = String::new();
+        for variant in &enum_type.variants {
+            variants_text.push_str(&format!("\t{variant},\n"));
+        }
+
+        self.output.push_str("typedef enum {\n");
+        self.output.push_str(&variants_text);
+        self.output.push_str(&format!("}} {};\n\n", enum_type.name));
+    }
+
+    fn generate_union_type(&mut self, schema: &Schema, union_type: &UnionType) {
+        let repr_type_name = schema.type_name(union_type.repr_type_index, Type::Primitive);
+        let c_repr_type_name =
+            Self::binterop_primitive_name_to_c_primitive_name(&repr_type_name).unwrap();
+        let repr_field_text = format!("\t{c_repr_type_name} repr;\n");
+
+        let mut union_text = String::from("\tunion {\n");
+        for (variant_type_index, variant_type) in union_type.possible_types.iter().copied() {
+            let variant_type_name = schema.type_name(variant_type_index, variant_type);
+            let field_name = variant_type_name.to_snake();
+            union_text.push_str(&format!("\t\t{variant_type_name} {field_name};\n"));
+        }
+        union_text.push_str("\t};\n");
+
+        self.output
+            .push_str("typedef struct __attribute__((packed)) {\n");
+        self.output.push_str(&repr_field_text);
+        self.output.push_str(&union_text);
+        self.output
+            .push_str(&format!("}} {};\n\n", union_type.name));
+    }
 }
 impl LanguageGenerator for CGenerator {
     fn feed(&mut self, schema: &Schema) {
         self.output
             .push_str("#include <stdint.h>\n#include <stdbool.h>\n\n");
-        for data_type in &schema.types {
-            self.generate_data_type(schema, data_type);
+
+        let root_type = &schema.types[schema.root_type_index];
+        for field in &root_type.fields {
+            let type_name = schema.type_name(field.type_index, field.r#type);
+            if self.generated_type_names.contains(&type_name) {
+                continue;
+            }
+
+            match field.r#type {
+                Type::Primitive => {}
+                Type::Data => self.generate_data_type(schema, &schema.types[field.type_index]),
+                Type::Enum => self.generate_enum_type(&schema.enums[field.type_index]),
+                Type::Union => self.generate_union_type(schema, &schema.unions[field.type_index]),
+            }
+            self.generated_type_names.push(type_name);
         }
+        self.generate_data_type(schema, root_type);
     }
 
     fn output(self) -> String {
