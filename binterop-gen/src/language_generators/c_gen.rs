@@ -2,10 +2,11 @@ use crate::language_generators::LanguageGenerator;
 use binterop::schema::{Schema, Type};
 use binterop::types::{DataType, EnumType, UnionType};
 use case::CaseExt;
+use std::collections::HashSet;
 
 #[derive(Default, Debug)]
 pub struct CGenerator {
-    generated_type_names: Vec<String>,
+    generated_type_names: HashSet<String>,
     output: String,
 }
 impl CGenerator {
@@ -27,12 +28,54 @@ impl CGenerator {
         }
     }
 
-    fn generate_data_type(&mut self, schema: &Schema, data_type: &DataType) {
+    fn generate_type(
+        &mut self,
+        schema: &Schema,
+        type_index: usize,
+        r#type: Type,
+        referer_name: Option<&str>,
+    ) -> Result<(), String> {
+        let referer_name = referer_name.unwrap_or("Unknown");
+
+        match r#type {
+            Type::Primitive => Ok(()),
+            Type::Data => {
+                let data_type = schema.types.get(type_index).ok_or(format!(
+                    "{} references type which is not present in schema!",
+                    referer_name
+                ))?;
+                self.generate_data_type(schema, data_type)
+            }
+            Type::Enum => {
+                let enum_type = schema.enums.get(type_index).ok_or(format!(
+                    "Variant {} references enum which is not present in schema!",
+                    referer_name
+                ))?;
+                self.generate_enum_type(enum_type);
+
+                Ok(())
+            }
+            Type::Union => {
+                let union_type = schema.unions.get(type_index).ok_or(format!(
+                    "Variant {} references union which is not present in schema!",
+                    referer_name
+                ))?;
+                self.generate_union_type(schema, union_type)
+            }
+        }
+    }
+
+    fn generate_data_type(&mut self, schema: &Schema, data_type: &DataType) -> Result<(), String> {
         let mut fields_text = String::new();
         for field in &data_type.fields {
             let type_name = schema.type_name(field.type_index, field.r#type);
-            let field_type_name =
-                Self::binterop_primitive_name_to_c_primitive_name(&type_name).unwrap_or(type_name);
+            if !self.generated_type_names.contains(type_name) {
+                self.generate_type(schema, field.type_index, field.r#type, Some(&field.name))?;
+            }
+
+            let type_name = schema.type_name(field.type_index, field.r#type);
+            let field_type_name = Self::binterop_primitive_name_to_c_primitive_name(type_name)
+                .unwrap_or(type_name.to_string());
 
             fields_text.push_str(&format!("\t{field_type_name} {};\n", field.name));
         }
@@ -41,6 +84,10 @@ impl CGenerator {
             .push_str("typedef struct __attribute__((packed)) {\n");
         self.output.push_str(&fields_text);
         self.output.push_str(&format!("}} {};\n\n", data_type.name));
+
+        self.generated_type_names.insert(data_type.name.clone());
+
+        Ok(())
     }
 
     fn generate_enum_type(&mut self, enum_type: &EnumType) {
@@ -52,16 +99,34 @@ impl CGenerator {
         self.output.push_str("typedef enum {\n");
         self.output.push_str(&variants_text);
         self.output.push_str(&format!("}} {};\n\n", enum_type.name));
+
+        self.generated_type_names.insert(enum_type.name.clone());
     }
 
-    fn generate_union_type(&mut self, schema: &Schema, union_type: &UnionType) {
+    fn generate_union_type(
+        &mut self,
+        schema: &Schema,
+        union_type: &UnionType,
+    ) -> Result<(), String> {
         let repr_type_name = schema.type_name(union_type.repr_type_index, Type::Primitive);
-        let c_repr_type_name =
-            Self::binterop_primitive_name_to_c_primitive_name(&repr_type_name).unwrap();
+        let c_repr_type_name = Self::binterop_primitive_name_to_c_primitive_name(repr_type_name)
+            .ok_or(format!(
+                "Failed to convert binterop {repr_type_name} primitive to C primitive name!"
+            ))?;
         let repr_field_text = format!("\t{c_repr_type_name} repr;\n");
 
         let mut union_text = String::from("\tunion {\n");
         for (variant_type_index, variant_type) in union_type.possible_types.iter().copied() {
+            let type_name = schema.type_name(variant_type_index, variant_type);
+            if !self.generated_type_names.contains(type_name) {
+                self.generate_type(
+                    schema,
+                    variant_type_index,
+                    variant_type,
+                    Some(&union_type.name),
+                )?;
+            }
+
             let variant_type_name = schema.type_name(variant_type_index, variant_type);
             let field_name = variant_type_name.to_snake();
             union_text.push_str(&format!("\t\t{variant_type_name} {field_name};\n"));
@@ -74,6 +139,10 @@ impl CGenerator {
         self.output.push_str(&union_text);
         self.output
             .push_str(&format!("}} {};\n\n", union_type.name));
+
+        self.generated_type_names.insert(union_type.name.clone());
+
+        Ok(())
     }
 }
 impl LanguageGenerator for CGenerator {
@@ -81,35 +150,17 @@ impl LanguageGenerator for CGenerator {
         self.output
             .push_str("#include <stdint.h>\n#include <stdbool.h>\n\n");
 
-        let root_type = &schema.types.get(schema.root_type_index);
-
-        if let Some(root_type) = root_type {
-            for field in &root_type.fields {
-                let type_name = schema.type_name(field.type_index, field.r#type);
-                if self.generated_type_names.contains(&type_name) {
-                    continue;
-                }
-
-                match field.r#type {
-                    Type::Primitive => {}
-                    Type::Data => self.generate_data_type(schema, &schema.types[field.type_index]),
-                    Type::Enum => self.generate_enum_type(&schema.enums[field.type_index]),
-                    Type::Union => {
-                        self.generate_union_type(schema, &schema.unions[field.type_index])
-                    }
-                }
-                self.generated_type_names.push(type_name);
-            }
-            self.generate_data_type(schema, root_type);
-        } else {
-            println!(
-                "CGen warning: provided schema has no root type! Generating enums and unions only!"
-            );
-            for enum_type in &schema.enums {
+        for data_type in &schema.types {
+            self.generate_data_type(schema, data_type)?;
+        }
+        for enum_type in &schema.enums {
+            if !self.generated_type_names.contains(&enum_type.name) {
                 self.generate_enum_type(enum_type);
             }
-            for union_type in &schema.unions {
-                self.generate_union_type(schema, union_type);
+        }
+        for union_type in &schema.unions {
+            if !self.generated_type_names.contains(&union_type.name) {
+                self.generate_union_type(schema, union_type)?;
             }
         }
 

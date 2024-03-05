@@ -33,12 +33,12 @@ impl Schema {
         }
     }
 
-    pub fn type_name(&self, index: usize, r#type: Type) -> String {
+    pub fn type_name(&self, index: usize, r#type: Type) -> &str {
         match r#type {
-            Type::Primitive => PRIMITIVES.name_of(index).unwrap().to_string(),
-            Type::Data => self.types[index].name.clone(),
-            Type::Enum => self.enums[index].name.clone(),
-            Type::Union => self.unions[index].name.clone(),
+            Type::Primitive => PRIMITIVES.name_of(index).unwrap(),
+            Type::Data => &self.types[index].name,
+            Type::Enum => &self.enums[index].name,
+            Type::Union => &self.unions[index].name,
         }
     }
 
