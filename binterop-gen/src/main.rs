@@ -25,7 +25,7 @@ fn generate_lang_files(gen_name: &str, schema: &Schema) -> Result<(String, Strin
     match gen_name {
         "c" => {
             let mut generator = CGenerator::default();
-            generator.feed(schema);
+            generator.feed(schema)?;
 
             Ok((generator.output_extension(), generator.output()))
         }
@@ -86,5 +86,6 @@ fn main() {
             }
             Err(err) => eprintln!("{path:?}: {err:?}"),
         }
+        println!()
     }
 }

@@ -77,26 +77,43 @@ impl CGenerator {
     }
 }
 impl LanguageGenerator for CGenerator {
-    fn feed(&mut self, schema: &Schema) {
+    fn feed(&mut self, schema: &Schema) -> Result<(), String> {
         self.output
             .push_str("#include <stdint.h>\n#include <stdbool.h>\n\n");
 
-        let root_type = &schema.types[schema.root_type_index];
-        for field in &root_type.fields {
-            let type_name = schema.type_name(field.type_index, field.r#type);
-            if self.generated_type_names.contains(&type_name) {
-                continue;
-            }
+        let root_type = &schema.types.get(schema.root_type_index);
 
-            match field.r#type {
-                Type::Primitive => {}
-                Type::Data => self.generate_data_type(schema, &schema.types[field.type_index]),
-                Type::Enum => self.generate_enum_type(&schema.enums[field.type_index]),
-                Type::Union => self.generate_union_type(schema, &schema.unions[field.type_index]),
+        if let Some(root_type) = root_type {
+            for field in &root_type.fields {
+                let type_name = schema.type_name(field.type_index, field.r#type);
+                if self.generated_type_names.contains(&type_name) {
+                    continue;
+                }
+
+                match field.r#type {
+                    Type::Primitive => {}
+                    Type::Data => self.generate_data_type(schema, &schema.types[field.type_index]),
+                    Type::Enum => self.generate_enum_type(&schema.enums[field.type_index]),
+                    Type::Union => {
+                        self.generate_union_type(schema, &schema.unions[field.type_index])
+                    }
+                }
+                self.generated_type_names.push(type_name);
             }
-            self.generated_type_names.push(type_name);
+            self.generate_data_type(schema, root_type);
+        } else {
+            println!(
+                "CGen warning: provided schema has no root type! Generating enums and unions only!"
+            );
+            for enum_type in &schema.enums {
+                self.generate_enum_type(enum_type);
+            }
+            for union_type in &schema.unions {
+                self.generate_union_type(schema, union_type);
+            }
         }
-        self.generate_data_type(schema, root_type);
+
+        Ok(())
     }
 
     fn output(self) -> String {
