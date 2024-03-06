@@ -33,6 +33,24 @@ fn generate_lang_files(gen_name: &str, schema: &Schema) -> Result<(String, Strin
     }
 }
 
+fn optimize_data_type_layouts(schema: &mut Schema) {
+    let field_sizes = schema
+        .types
+        .iter()
+        .flat_map(|data_type| data_type.fields.iter().map(|field| field.size(schema)))
+        .collect::<Vec<_>>();
+    let mut field_sizes_cursor = 0;
+
+    for data_type in &mut schema.types {
+        let field_sizes =
+            &field_sizes[field_sizes_cursor..field_sizes_cursor + data_type.fields.len()];
+        field_sizes_cursor += data_type.fields.len();
+
+        let mut permutation = permutation::sort_unstable_by(field_sizes, |f1, f2| f1.cmp(f2));
+        permutation.apply_slice_in_place(&mut data_type.fields);
+    }
+}
+
 fn main() {
     let args_iter = env::args();
 
@@ -43,13 +61,16 @@ fn main() {
     {
         match fs::read_to_string(&path) {
             Ok(file_text) => {
-                let schema = match generate_schema(Some(path.clone()), &file_text) {
+                let mut schema = match generate_schema(Some(path.clone()), &file_text) {
                     Ok(schema) => schema,
                     Err(err) => {
                         eprintln!("{path:?}: {err}");
                         continue;
                     }
                 };
+                if !env::args().any(|arg| arg == "--dont-optimize-layout") {
+                    optimize_data_type_layouts(&mut schema);
+                }
 
                 let schema_serialized = serde_json::to_string(&schema);
 

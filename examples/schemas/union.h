@@ -6,10 +6,10 @@ typedef struct __attribute__((packed)) {
 } SomeOtherType;
 
 typedef struct __attribute__((packed)) {
-	int16_t some_uint;
-	int64_t some_int;
 	bool some_bool;
+	int16_t some_uint;
 	float some_float;
+	int64_t some_int;
 	SomeOtherType some_other_type;
 } SomeStruct;
 
