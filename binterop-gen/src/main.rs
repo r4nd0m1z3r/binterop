@@ -10,26 +10,17 @@ use binterop::schema::Schema;
 use std::path::{Path, PathBuf};
 use std::{env, fs};
 
-fn generate_schema(file_path: Option<PathBuf>, definition_text: &str) -> Result<Schema, String> {
-    let mut tokenizer = Tokenizer::new(file_path, definition_text);
-    let mut generator = Generator::default();
-
-    while let Some(token) = tokenizer.yield_token()? {
-        generator.feed(token)?
-    }
-
-    Ok(generator.output())
+#[derive(Copy, Clone)]
+struct SchemaOptimizations {
+    data_type_layout: bool,
 }
+impl SchemaOptimizations {
+    fn new() -> Self {
+        let args = env::args().collect::<Vec<_>>();
 
-fn generate_lang_files(gen_name: &str, schema: &Schema) -> Result<(String, String), String> {
-    match gen_name {
-        "c" => {
-            let mut generator = CGenerator::default();
-            generator.feed(schema)?;
-
-            Ok((generator.output_extension(), generator.output()))
+        Self {
+            data_type_layout: !args.contains(&"--dont-optimize-layout".to_string()),
         }
-        _ => Err(format!("Unknown language generator name: {gen_name}")),
     }
 }
 
@@ -51,6 +42,42 @@ fn optimize_data_type_layouts(schema: &mut Schema) {
     }
 }
 
+fn optimize_schema(schema: &mut Schema, optimizations: SchemaOptimizations) {
+    if optimizations.data_type_layout {
+        optimize_data_type_layouts(schema);
+    }
+}
+
+fn generate_schema(
+    file_path: Option<PathBuf>,
+    definition_text: &str,
+    optimizations: SchemaOptimizations,
+) -> Result<Schema, String> {
+    let mut tokenizer = Tokenizer::new(file_path, definition_text);
+    let mut generator = Generator::default();
+
+    while let Some(token) = tokenizer.yield_token()? {
+        generator.feed(token)?
+    }
+    let mut schema = generator.output();
+
+    optimize_schema(&mut schema, optimizations);
+
+    Ok(schema)
+}
+
+fn generate_lang_files(gen_name: &str, schema: &Schema) -> Result<(String, String), String> {
+    match gen_name {
+        "c" => {
+            let mut generator = CGenerator::default();
+            generator.feed(schema)?;
+
+            Ok((generator.output_extension(), generator.output()))
+        }
+        _ => Err(format!("Unknown language generator name: {gen_name}")),
+    }
+}
+
 fn language_generator(path: &Path, gen_name: &str, schema: &Schema) -> Result<(), String> {
     let (ext, output) = generate_lang_files(gen_name, schema)
         .map_err(|err| format!("Failed to generate language files! Error: {err}"))?;
@@ -62,11 +89,7 @@ fn language_generator(path: &Path, gen_name: &str, schema: &Schema) -> Result<()
 fn process_text(path: &Path, text: &str) -> Result<Vec<String>, String> {
     let mut status = vec![];
 
-    let mut schema = generate_schema(Some(path.into()), text)?;
-    if !env::args().any(|arg| arg == "--dont-optimize-layout") {
-        optimize_data_type_layouts(&mut schema);
-    }
-
+    let schema = generate_schema(Some(path.into()), text, SchemaOptimizations::new())?;
     let schema_serialized = serde_json::to_string(&schema);
 
     match schema_serialized {
