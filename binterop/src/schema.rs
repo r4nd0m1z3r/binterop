@@ -1,4 +1,4 @@
-use crate::primitives::PRIMITIVES;
+use crate::types::primitives::PRIMITIVES;
 use crate::types::{DataType, EnumType, UnionType};
 use serde::{Deserialize, Serialize};
 

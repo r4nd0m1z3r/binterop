@@ -1,6 +1,8 @@
-use crate::primitives::PRIMITIVES;
+pub mod primitives;
+
 use crate::schema::{Schema, Type};
 use crate::Field;
+use primitives::PRIMITIVES;
 use serde::{Deserialize, Serialize};
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]

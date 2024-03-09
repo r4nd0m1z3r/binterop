@@ -1,12 +1,12 @@
-use crate::field::Field;
-use crate::primitives::PRIMITIVES;
-use crate::schema::Schema;
-use crate::types::DataType;
-
 pub mod field;
-pub mod primitives;
 pub mod schema;
 pub mod types;
+
+use crate::field::Field;
+use crate::schema::Schema;
+use crate::types::primitives::PRIMITIVES;
+use crate::types::DataType;
+pub use types::primitives;
 
 #[allow(dead_code)]
 fn generate_vec3_schema() -> Schema {
