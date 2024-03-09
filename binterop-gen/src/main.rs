@@ -7,7 +7,7 @@ use crate::language_generators::c_gen::CGenerator;
 use crate::language_generators::LanguageGenerator;
 use crate::tokenizer::Tokenizer;
 use binterop::schema::Schema;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::{env, fs};
 
 fn generate_schema(file_path: Option<PathBuf>, definition_text: &str) -> Result<Schema, String> {
@@ -51,6 +51,50 @@ fn optimize_data_type_layouts(schema: &mut Schema) {
     }
 }
 
+fn language_generator(path: &Path, gen_name: &str, schema: &Schema) -> Result<(), String> {
+    let (ext, output) = generate_lang_files(gen_name, schema)
+        .map_err(|err| format!("Failed to generate language files! Error: {err}"))?;
+
+    fs::write(path.with_extension(ext), output)
+        .map_err(|err| format!("Failed to write generated language file! Error: {err}"))
+}
+
+fn process_text(path: &Path, text: &str) -> Result<Vec<String>, String> {
+    let mut status = vec![];
+
+    let mut schema = generate_schema(Some(path.into()), text)?;
+    if !env::args().any(|arg| arg == "--dont-optimize-layout") {
+        optimize_data_type_layouts(&mut schema);
+    }
+
+    let schema_serialized = serde_json::to_string(&schema);
+
+    match schema_serialized {
+        Ok(data) => {
+            let output_path = path.with_extension("json");
+            fs::write(&output_path, data).map_err(|err| {
+                format!("Failed to write serialized schema to {output_path:?}! Error: {err:?}")
+            })?;
+            status.push(format!("Schema written to {output_path:?}"));
+        }
+        Err(err) => Err(format!(
+            "{path:?}: Failed to serialize schema! Error: {err:?}"
+        ))?,
+    }
+
+    if let Some(gen_name) = env::args()
+        .filter_map(|arg| arg.strip_prefix("--gen=").map(ToString::to_string))
+        .next()
+    {
+        language_generator(path, &gen_name, &schema)?;
+        status.push(format!(
+            "Generated language files using {gen_name} generator."
+        ));
+    }
+
+    Ok(status)
+}
+
 fn main() {
     let args_iter = env::args();
 
@@ -59,54 +103,20 @@ fn main() {
         .map(PathBuf::from)
         .flat_map(fs::canonicalize)
     {
+        println!("{path:?}");
+
         match fs::read_to_string(&path) {
-            Ok(file_text) => {
-                let mut schema = match generate_schema(Some(path.clone()), &file_text) {
-                    Ok(schema) => schema,
-                    Err(err) => {
-                        eprintln!("{path:?}: {err}");
-                        continue;
-                    }
-                };
-                if !env::args().any(|arg| arg == "--dont-optimize-layout") {
-                    optimize_data_type_layouts(&mut schema);
-                }
-
-                let schema_serialized = serde_json::to_string(&schema);
-
-                match schema_serialized {
-                    Ok(data) => {
-                        let output_path = path.with_extension("json");
-                        if let Err(err) = fs::write(&output_path, data) {
-                            eprintln!("{path:?}: Failed to write serialized schema to {output_path:?}! Error: {err:?}");
-                        } else {
-                            println!("{path:?} -> {output_path:?}");
-                        }
-                    }
-                    Err(err) => eprintln!("{path:?}: Failed to serialize schema! Error: {err:?}"),
-                }
-
-                if let Some(gen_name) = env::args()
-                    .filter_map(|arg| arg.strip_prefix("--gen=").map(ToString::to_string))
-                    .next()
-                {
-                    match generate_lang_files(&gen_name, &schema) {
-                        Ok((ext, output)) => match fs::write(path.with_extension(ext), output) {
-                            Ok(_) => println!(
-                                "{path:?}: Generated language files using {gen_name} generator."
-                            ),
-                            Err(err) => eprintln!(
-                                "{path:?}: Failed to write generated language file! Error: {err}"
-                            ),
-                        },
-                        Err(err) => {
-                            eprintln!("{path:?}: Failed to generate language files! Error: {err}");
-                        }
+            Ok(file_text) => match process_text(&path, &file_text) {
+                Ok(status) => {
+                    for line in status {
+                        eprintln!("\t{line}")
                     }
                 }
-            }
-            Err(err) => eprintln!("{path:?}: {err:?}"),
+                Err(err) => eprintln!("\t{err}"),
+            },
+            Err(err) => eprintln!("{err:?}"),
         }
+
         println!()
     }
 }
