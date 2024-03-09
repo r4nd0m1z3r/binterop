@@ -1,5 +1,11 @@
-use crate::types::PrimitiveType;
+use serde::{Deserialize, Serialize};
 use std::ops::Index;
+
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+pub struct PrimitiveType {
+    pub name: &'static str,
+    pub size: usize,
+}
 
 pub struct Primitives(phf::OrderedMap<&'static str, PrimitiveType>);
 impl Primitives {

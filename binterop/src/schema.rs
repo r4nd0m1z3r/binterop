@@ -1,5 +1,7 @@
+use crate::types::data::DataType;
 use crate::types::primitives::PRIMITIVES;
-use crate::types::{DataType, EnumType, UnionType};
+use crate::types::r#enum::EnumType;
+use crate::types::union::UnionType;
 use serde::{Deserialize, Serialize};
 
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]

@@ -1,6 +1,8 @@
 use crate::language_generators::LanguageGenerator;
 use binterop::schema::{Schema, Type};
-use binterop::types::{DataType, EnumType, UnionType};
+use binterop::types::data::DataType;
+use binterop::types::r#enum::EnumType;
+use binterop::types::union::UnionType;
 use case::CaseExt;
 use std::collections::HashSet;
 

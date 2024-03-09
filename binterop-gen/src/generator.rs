@@ -1,8 +1,10 @@
 use crate::tokenizer::Token;
 use binterop::field::Field;
-use binterop::primitives::INTEGER_PRIMITIVE_NAMES;
 use binterop::schema::{Schema, Type};
-use binterop::types::{DataType, EnumType, UnionType};
+use binterop::types::data::DataType;
+use binterop::types::primitives::INTEGER_PRIMITIVE_NAMES;
+use binterop::types::r#enum::EnumType;
+use binterop::types::union::UnionType;
 
 #[derive(Debug, Default)]
 pub struct Generator {
