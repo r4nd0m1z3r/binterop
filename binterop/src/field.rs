@@ -28,6 +28,6 @@ impl Field {
     }
 
     pub fn size(&self, schema: &Schema) -> usize {
-        schema.type_size(self.type_index, self.r#type)
+        schema.type_size(self.r#type, self.type_index)
     }
 }

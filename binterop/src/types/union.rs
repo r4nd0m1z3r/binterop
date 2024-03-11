@@ -42,7 +42,7 @@ impl UnionType {
         let max_possible_type_size = self
             .possible_types
             .iter()
-            .map(|(index, r#type)| schema.type_size(*index, *r#type))
+            .map(|(index, r#type)| schema.type_size(*r#type, *index))
             .max()
             .unwrap();
 

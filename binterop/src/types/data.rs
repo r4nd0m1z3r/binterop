@@ -15,7 +15,7 @@ impl DataType {
             .copied()
             .enumerate()
             .map(|(index, (name, r#type, type_index))| {
-                let type_size = schema.type_size(index, r#type);
+                let type_size = schema.type_size(r#type, index);
 
                 Field::new(name, r#type, type_index, index * type_size)
             })
