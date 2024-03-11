@@ -15,7 +15,9 @@ impl DataType {
             .copied()
             .enumerate()
             .map(|(index, (name, r#type, type_index))| {
-                let type_size = schema.type_size(r#type, index);
+                let type_size = schema.type_size(r#type, index).unwrap_or_else(|| {
+                    panic!("Provided schema does not contain type {type:?} with index {index}!")
+                });
 
                 Field::new(name, r#type, type_index, index * type_size)
             })

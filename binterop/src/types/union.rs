@@ -42,7 +42,11 @@ impl UnionType {
         let max_possible_type_size = self
             .possible_types
             .iter()
-            .map(|(index, r#type)| schema.type_size(*r#type, *index))
+            .map(|(index, r#type)| {
+                schema.type_size(*r#type, *index).unwrap_or_else(|| {
+                    panic!("Provided schema does not contain type {type:?} with index {index}!")
+                })
+            })
             .max()
             .unwrap();
 

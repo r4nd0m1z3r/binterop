@@ -44,12 +44,15 @@ impl Schema {
         }
     }
 
-    pub fn type_size(&self, index: usize, r#type: Type) -> usize {
+    pub fn type_size(&self, r#type: Type, index: usize) -> Option<usize> {
         match r#type {
-            Type::Primitive => PRIMITIVES.index(index).unwrap().size,
-            Type::Data => self.types[index].size(self),
-            Type::Enum => self.enums[index].size(),
-            Type::Union => self.unions[index].size(self),
+            Type::Primitive => PRIMITIVES.index(index).map(|primitive| primitive.size),
+            Type::Data => self.types.get(index).map(|data_type| data_type.size(self)),
+            Type::Enum => self.enums.get(index).map(|enum_type| enum_type.size()),
+            Type::Union => self
+                .unions
+                .get(index)
+                .map(|union_type| union_type.size(self)),
         }
     }
 
@@ -66,7 +69,7 @@ impl Schema {
             .find(|(_, data_type)| data_type.name == name)
             .map(|(index, _)| index)
         {
-            let type_size = self.type_size(index, Type::Data);
+            let type_size = self.type_size(Type::Data, index).unwrap();
             return Ok((index, Type::Data, type_size));
         }
 
@@ -77,7 +80,7 @@ impl Schema {
             .find(|(_, enum_type)| enum_type.name == *name)
             .map(|(index, _)| index)
         {
-            let type_size = self.type_size(index, Type::Enum);
+            let type_size = self.type_size(Type::Enum, index).unwrap();
             return Ok((index, Type::Enum, type_size));
         }
 
@@ -88,7 +91,7 @@ impl Schema {
             .find(|(_, union_type)| union_type.name == *name)
             .map(|(index, _)| index)
         {
-            let type_size = self.type_size(index, Type::Union);
+            let type_size = self.type_size(Type::Union, index).unwrap();
             return Ok((index, Type::Union, type_size));
         }
 

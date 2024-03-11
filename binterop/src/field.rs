@@ -28,6 +28,8 @@ impl Field {
     }
 
     pub fn size(&self, schema: &Schema) -> usize {
-        schema.type_size(self.r#type, self.type_index)
+        schema
+            .type_size(self.r#type, self.type_index)
+            .expect("Provided schema does not contain this type!")
     }
 }
