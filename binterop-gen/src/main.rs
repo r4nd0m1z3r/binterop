@@ -25,7 +25,7 @@ impl SchemaOptimizations {
 }
 
 fn optimize_data_type_layouts(schema: &mut Schema) {
-    let field_sizes = schema
+    let mut field_sizes = schema
         .types
         .iter()
         .flat_map(|data_type| data_type.fields.iter().map(|field| field.size(schema)))
@@ -34,11 +34,18 @@ fn optimize_data_type_layouts(schema: &mut Schema) {
 
     for data_type in &mut schema.types {
         let field_sizes =
-            &field_sizes[field_sizes_cursor..field_sizes_cursor + data_type.fields.len()];
+            &mut field_sizes[field_sizes_cursor..field_sizes_cursor + data_type.fields.len()];
         field_sizes_cursor += data_type.fields.len();
 
-        let mut permutation = permutation::sort_unstable_by(field_sizes, |f1, f2| f1.cmp(f2));
+        let mut permutation = permutation::sort_unstable_by(&field_sizes, |f1, f2| f1.cmp(f2));
         permutation.apply_slice_in_place(&mut data_type.fields);
+        permutation.apply_slice_in_place(field_sizes);
+
+        let mut field_offset = 0;
+        for (field, &size) in data_type.fields.iter_mut().zip(field_sizes.iter()) {
+            field.offset = field_offset;
+            field_offset += size;
+        }
     }
 }
 
