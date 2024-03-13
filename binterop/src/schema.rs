@@ -1,8 +1,24 @@
+use crate::types::array::ArrayType;
 use crate::types::data::DataType;
 use crate::types::primitives::PRIMITIVES;
 use crate::types::r#enum::EnumType;
 use crate::types::union::UnionType;
 use serde::{Deserialize, Serialize};
+
+pub struct TypeData {
+    pub index: usize,
+    pub r#type: Type,
+    pub size: usize,
+}
+impl TypeData {
+    pub fn new(index: usize, r#type: Type, size: usize) -> Self {
+        Self {
+            index,
+            r#type,
+            size,
+        }
+    }
+}
 
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Type {
@@ -11,6 +27,7 @@ pub enum Type {
     Data,
     Enum,
     Union,
+    Array,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -19,6 +36,7 @@ pub struct Schema {
     pub types: Vec<DataType>,
     pub enums: Vec<EnumType>,
     pub unions: Vec<UnionType>,
+    pub arrays: Vec<ArrayType>,
 }
 impl Schema {
     pub fn new(
@@ -26,21 +44,24 @@ impl Schema {
         types: &[DataType],
         enums: &[EnumType],
         unions: &[UnionType],
+        arrays: &[ArrayType],
     ) -> Self {
         Self {
             root_type_index,
             types: types.to_vec(),
             enums: enums.to_vec(),
             unions: unions.to_vec(),
+            arrays: arrays.to_vec(),
         }
     }
 
-    pub fn type_name(&self, index: usize, r#type: Type) -> &str {
+    pub fn type_name(&self, r#type: Type, index: usize) -> &str {
         match r#type {
             Type::Primitive => PRIMITIVES.name_of(index).unwrap(),
             Type::Data => &self.types[index].name,
             Type::Enum => &self.enums[index].name,
             Type::Union => &self.unions[index].name,
+            Type::Array => "Array",
         }
     }
 
@@ -53,13 +74,17 @@ impl Schema {
                 .unions
                 .get(index)
                 .map(|union_type| union_type.size(self)),
+            Type::Array => self
+                .arrays
+                .get(index)
+                .map(|array_type| array_type.size(self)),
         }
     }
 
-    pub fn type_data_by_name(&self, name: &str) -> Result<(usize, Type, usize), String> {
+    pub fn type_data_by_name(&self, name: &str) -> Result<TypeData, String> {
         if let Some(index) = PRIMITIVES.index_of(name) {
             let type_size = PRIMITIVES[name].size;
-            return Ok((index, Type::Primitive, type_size));
+            return Ok(TypeData::new(index, Type::Primitive, type_size));
         }
 
         if let Some(index) = self
@@ -70,7 +95,7 @@ impl Schema {
             .map(|(index, _)| index)
         {
             let type_size = self.type_size(Type::Data, index).unwrap();
-            return Ok((index, Type::Data, type_size));
+            return Ok(TypeData::new(index, Type::Data, type_size));
         }
 
         if let Some(index) = self
@@ -81,7 +106,7 @@ impl Schema {
             .map(|(index, _)| index)
         {
             let type_size = self.type_size(Type::Enum, index).unwrap();
-            return Ok((index, Type::Enum, type_size));
+            return Ok(TypeData::new(index, Type::Enum, type_size));
         }
 
         if let Some(index) = self
@@ -92,7 +117,7 @@ impl Schema {
             .map(|(index, _)| index)
         {
             let type_size = self.type_size(Type::Union, index).unwrap();
-            return Ok((index, Type::Union, type_size));
+            return Ok(TypeData::new(index, Type::Union, type_size));
         }
 
         let available_type_names = self

@@ -40,7 +40,7 @@ impl CGenerator {
         let referer_name = referer_name.unwrap_or("Unknown");
 
         match r#type {
-            Type::Primitive => Ok(()),
+            Type::Primitive | Type::Array => Ok(()),
             Type::Data => {
                 let data_type = schema.types.get(type_index).ok_or(format!(
                     "{} references type which is not present in schema!",
@@ -70,16 +70,36 @@ impl CGenerator {
     fn generate_data_type(&mut self, schema: &Schema, data_type: &DataType) -> Result<(), String> {
         let mut fields_text = String::new();
         for field in &data_type.fields {
-            let type_name = schema.type_name(field.type_index, field.r#type);
+            let type_name = schema.type_name(field.r#type, field.type_index);
             if !self.generated_type_names.contains(type_name) {
                 self.generate_type(schema, field.type_index, field.r#type, Some(&field.name))?;
             }
 
-            let type_name = schema.type_name(field.type_index, field.r#type);
+            let type_name = schema.type_name(field.r#type, field.type_index);
             let field_type_name = Self::binterop_primitive_name_to_c_primitive_name(type_name)
-                .unwrap_or(type_name.to_string());
+                .unwrap_or_else(|| match field.r#type {
+                    Type::Array => {
+                        let array_type = schema.arrays[field.type_index];
+                        let inner_type_name =
+                            schema.type_name(array_type.inner_type, array_type.inner_type_index);
 
-            fields_text.push_str(&format!("\t{field_type_name} {};\n", field.name));
+                        if let Some(type_name) =
+                            Self::binterop_primitive_name_to_c_primitive_name(inner_type_name)
+                        {
+                            type_name
+                        } else {
+                            inner_type_name.to_string()
+                        }
+                    }
+                    _ => type_name.to_string(),
+                });
+
+            let field_name = if let Type::Array = field.r#type {
+                format!("{}[{}]", field.name, schema.arrays[field.type_index].len)
+            } else {
+                field.name.clone()
+            };
+            fields_text.push_str(&format!("\t{field_type_name} {field_name};\n"));
         }
 
         self.output
@@ -110,7 +130,7 @@ impl CGenerator {
         schema: &Schema,
         union_type: &UnionType,
     ) -> Result<(), String> {
-        let repr_type_name = schema.type_name(union_type.repr_type_index, Type::Primitive);
+        let repr_type_name = schema.type_name(Type::Primitive, union_type.repr_type_index);
         let c_repr_type_name = Self::binterop_primitive_name_to_c_primitive_name(repr_type_name)
             .ok_or(format!(
                 "Failed to convert binterop {repr_type_name} primitive to C primitive name!"
@@ -119,7 +139,7 @@ impl CGenerator {
 
         let mut union_text = String::from("\tunion {\n");
         for (variant_type_index, variant_type) in union_type.possible_types.iter().copied() {
-            let type_name = schema.type_name(variant_type_index, variant_type);
+            let type_name = schema.type_name(variant_type, variant_type_index);
             if !self.generated_type_names.contains(type_name) {
                 self.generate_type(
                     schema,
@@ -129,7 +149,7 @@ impl CGenerator {
                 )?;
             }
 
-            let variant_type_name = schema.type_name(variant_type_index, variant_type);
+            let variant_type_name = schema.type_name(variant_type, variant_type_index);
             let field_name = variant_type_name.to_snake();
             union_text.push_str(&format!("\t\t{variant_type_name} {field_name};\n"));
         }

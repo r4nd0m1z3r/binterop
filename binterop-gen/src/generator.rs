@@ -1,6 +1,7 @@
 use crate::tokenizer::Token;
 use binterop::field::Field;
-use binterop::schema::{Schema, Type};
+use binterop::schema::{Schema, Type, TypeData};
+use binterop::types::array::ArrayType;
 use binterop::types::data::DataType;
 use binterop::types::primitives::INTEGER_PRIMITIVE_NAMES;
 use binterop::types::r#enum::EnumType;
@@ -24,7 +25,7 @@ impl Generator {
 
         if self.should_create_type {
             match self.currently_defining.as_ref().unwrap() {
-                Type::Primitive => {}
+                Type::Primitive | Type::Array => {}
                 Type::Data => {
                     self.current_index = self.schema.types.len();
                     self.schema.types.push(DataType::default_with_name(ident))
@@ -42,7 +43,7 @@ impl Generator {
             self.should_create_type = false;
         } else {
             match self.currently_defining.as_ref().unwrap() {
-                Type::Primitive => {}
+                Type::Primitive | Type::Array => {}
                 Type::Data => self.schema.types[self.current_index]
                     .fields
                     .push(Field::default_with_name(ident)),
@@ -53,7 +54,7 @@ impl Generator {
                     let r#type = self
                         .schema
                         .type_data_by_name(ident)
-                        .map(|(index, r#type, _)| (index, r#type))?;
+                        .map(|type_data| (type_data.index, type_data.r#type))?;
                     self.schema.unions[self.current_index]
                         .possible_types
                         .push(r#type)
@@ -72,26 +73,64 @@ impl Generator {
             return Err(format!("{name:?} cannot represent enum state since it was not found in integer primitive list!\n\tAvailable integer primitives: {INTEGER_PRIMITIVE_NAMES:?}"));
         }
 
-        let (type_index, r#type, type_size) = self.schema.type_data_by_name(name)?;
+        let type_data = self.schema.type_data_by_name(name);
 
         match self.currently_defining {
-            Some(Type::Enum) => {
-                self.schema.enums[self.current_index].repr_type_index = type_index;
-            }
+            Some(Type::Enum) => {}
             Some(Type::Union) => {
-                self.schema.unions[self.current_index].repr_type_index = type_index;
+                self.schema.unions[self.current_index].repr_type_index =
+                    self.schema.type_data_by_name(name)?.index;
             }
             _ => {
-                let new_field = self.schema.types[self.current_index]
-                    .fields
-                    .last_mut()
-                    .unwrap();
+                let size;
 
-                new_field.r#type = r#type;
-                new_field.type_index = type_index;
-                new_field.offset = self.current_offset;
+                if name.starts_with('[') && name.ends_with(']') {
+                    let separator_index = name
+                        .chars()
+                        .position(|ch| ch == ':')
+                        .ok_or("Expected array type but failed to find separator!")?;
 
-                self.current_offset += type_size;
+                    let TypeData {
+                        index,
+                        r#type,
+                        size: inner_type_size,
+                    } = self.schema.type_data_by_name(&name[1..separator_index])?;
+                    size = inner_type_size;
+
+                    let array_len = name[separator_index + 1..name.len() - 1]
+                        .parse::<usize>()
+                        .map_err(|err| format!("Failed to parse array len! Error: {err:?}"))?;
+
+                    let array_type = ArrayType::new(r#type, index, array_len);
+
+                    let new_field = self.schema.types[self.current_index]
+                        .fields
+                        .last_mut()
+                        .unwrap();
+                    new_field.r#type = Type::Array;
+                    new_field.type_index = self.schema.arrays.len();
+                    new_field.offset = self.current_offset;
+
+                    self.schema.arrays.push(array_type);
+                } else {
+                    let TypeData {
+                        index,
+                        r#type,
+                        size: type_size,
+                    } = type_data?;
+
+                    size = type_size;
+
+                    let new_field = self.schema.types[self.current_index]
+                        .fields
+                        .last_mut()
+                        .unwrap();
+                    new_field.r#type = r#type;
+                    new_field.type_index = index;
+                    new_field.offset = self.current_offset;
+                }
+
+                self.current_offset += size;
             }
         }
 
