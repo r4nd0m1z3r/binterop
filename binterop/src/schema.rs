@@ -48,7 +48,7 @@ impl Schema {
         match r#type {
             Type::Primitive => PRIMITIVES.index(index).map(|primitive| primitive.size),
             Type::Data => self.types.get(index).map(|data_type| data_type.size(self)),
-            Type::Enum => self.enums.get(index).map(|enum_type| enum_type.size()),
+            Type::Enum => Some(EnumType::size()),
             Type::Union => self
                 .unions
                 .get(index)
