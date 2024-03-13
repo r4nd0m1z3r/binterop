@@ -1,4 +1,4 @@
-enum Color u8 {
+enum Color {
     Red,
     Green,
     Blue

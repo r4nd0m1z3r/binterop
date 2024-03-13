@@ -1,27 +1,24 @@
-use crate::types::primitives::PRIMITIVES;
 use serde::{Deserialize, Serialize};
+use std::mem::size_of;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct EnumType {
     pub name: String,
     pub variants: Vec<String>,
-    pub repr_type_index: usize,
 }
 impl Default for EnumType {
     fn default() -> Self {
         Self {
             name: "".to_string(),
             variants: vec![],
-            repr_type_index: PRIMITIVES.index_of("u8").unwrap(),
         }
     }
 }
 impl EnumType {
-    pub fn new(name: &str, variants: &[&str], repr_type_index: usize) -> Self {
+    pub fn new(name: &str, variants: &[&str]) -> Self {
         Self {
             name: name.to_string(),
             variants: variants.iter().map(ToString::to_string).collect(),
-            repr_type_index,
         }
     }
 
@@ -32,7 +29,7 @@ impl EnumType {
         }
     }
 
-    pub fn size(&self) -> usize {
-        PRIMITIVES.index(self.repr_type_index).unwrap().size
+    pub fn size() -> usize {
+        size_of::<i32>()
     }
 }
