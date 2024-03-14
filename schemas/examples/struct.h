@@ -10,6 +10,7 @@ typedef struct __attribute__((packed)) {
 	int16_t some_uint;
 	float some_float;
 	int64_t some_int;
+	SomeOtherType* some_pointer;
 	SomeOtherType some_other_type;
 	SomeOtherType some_other_type_array[3];
 	float some_float_array[10];

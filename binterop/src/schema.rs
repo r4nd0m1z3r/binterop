@@ -1,5 +1,6 @@
 use crate::types::array::ArrayType;
 use crate::types::data::DataType;
+use crate::types::pointer::PointerType;
 use crate::types::primitives::PRIMITIVES;
 use crate::types::r#enum::EnumType;
 use crate::types::union::UnionType;
@@ -29,6 +30,7 @@ pub enum Type {
     Enum,
     Union,
     Array,
+    Pointer,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -38,6 +40,7 @@ pub struct Schema {
     pub enums: Vec<EnumType>,
     pub unions: Vec<UnionType>,
     pub arrays: Vec<ArrayType>,
+    pub pointers: Vec<PointerType>,
 }
 impl Schema {
     pub fn new(
@@ -46,6 +49,7 @@ impl Schema {
         enums: &[EnumType],
         unions: &[UnionType],
         arrays: &[ArrayType],
+        pointers: &[PointerType],
     ) -> Self {
         Self {
             root_type_index,
@@ -53,6 +57,7 @@ impl Schema {
             enums: enums.to_vec(),
             unions: unions.to_vec(),
             arrays: arrays.to_vec(),
+            pointers: pointers.to_vec(),
         }
     }
 
@@ -72,6 +77,15 @@ impl Schema {
 
                 Cow::Owned(format!("[{inner_type_name}:{len}]"))
             }
+            Type::Pointer => {
+                let PointerType {
+                    inner_type,
+                    inner_type_index,
+                } = self.pointers[index];
+                let inner_type_name = self.type_name(inner_type, inner_type_index);
+
+                Cow::Owned(format!("{inner_type_name}*"))
+            }
         }
     }
 
@@ -88,6 +102,7 @@ impl Schema {
                 .arrays
                 .get(index)
                 .map(|array_type| array_type.size(self)),
+            Type::Pointer => Some(PointerType::size()),
         }
     }
 

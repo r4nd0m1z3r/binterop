@@ -7,7 +7,8 @@ struct SomeStruct {
     some_int: i64,
     some_bool: bool,
     some_float: f32,
+    some_pointer: SomeOtherType*,
     some_float_array: [f32:10],
     some_other_type: SomeOtherType,
-    some_other_type_array: [SomeOtherType:3]
+    some_other_type_array: [SomeOtherType:3],
 }

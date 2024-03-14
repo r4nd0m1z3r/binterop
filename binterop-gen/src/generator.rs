@@ -3,6 +3,7 @@ use binterop::field::Field;
 use binterop::schema::{Schema, Type, TypeData};
 use binterop::types::array::ArrayType;
 use binterop::types::data::DataType;
+use binterop::types::pointer::PointerType;
 use binterop::types::primitives::INTEGER_PRIMITIVE_NAMES;
 use binterop::types::r#enum::EnumType;
 use binterop::types::union::UnionType;
@@ -25,7 +26,7 @@ impl Generator {
 
         if self.should_create_type {
             match self.currently_defining.as_ref().unwrap() {
-                Type::Primitive | Type::Array => {}
+                Type::Primitive | Type::Array | Type::Pointer => {}
                 Type::Data => {
                     self.current_index = self.schema.types.len();
                     self.schema.types.push(DataType::default_with_name(ident))
@@ -43,7 +44,7 @@ impl Generator {
             self.should_create_type = false;
         } else {
             match self.currently_defining.as_ref().unwrap() {
-                Type::Primitive | Type::Array => {}
+                Type::Primitive | Type::Array | Type::Pointer => {}
                 Type::Data => self.schema.types[self.current_index]
                     .fields
                     .push(Field::default_with_name(ident)),
@@ -84,7 +85,23 @@ impl Generator {
             _ => {
                 let size;
 
-                if name.starts_with('[') && name.ends_with(']') {
+                if name.ends_with('*') {
+                    let TypeData { index, r#type, .. } = self
+                        .schema
+                        .type_data_by_name(name.strip_suffix('*').unwrap())?;
+                    let pointer_type = PointerType::new(r#type, index);
+
+                    let new_field = self.schema.types[self.current_index]
+                        .fields
+                        .last_mut()
+                        .unwrap();
+                    new_field.r#type = Type::Pointer;
+                    new_field.type_index = self.schema.pointers.len();
+                    new_field.offset = self.current_offset;
+
+                    self.schema.pointers.push(pointer_type);
+                    size = PointerType::size();
+                } else if name.starts_with('[') && name.ends_with(']') {
                     let separator_index = name
                         .chars()
                         .position(|ch| ch == ':')

@@ -40,7 +40,7 @@ impl CGenerator {
         let referer_name = referer_name.unwrap_or("Unknown");
 
         match r#type {
-            Type::Primitive | Type::Array => Ok(()),
+            Type::Primitive | Type::Array | Type::Pointer => Ok(()),
             Type::Data => {
                 let data_type = schema.types.get(type_index).ok_or(format!(
                     "{} references type which is not present in schema!",
