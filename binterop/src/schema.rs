@@ -4,6 +4,7 @@ use crate::types::primitives::PRIMITIVES;
 use crate::types::r#enum::EnumType;
 use crate::types::union::UnionType;
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 
 pub struct TypeData {
     pub index: usize,
@@ -55,13 +56,22 @@ impl Schema {
         }
     }
 
-    pub fn type_name(&self, r#type: Type, index: usize) -> &str {
+    pub fn type_name(&self, r#type: Type, index: usize) -> Cow<str> {
         match r#type {
-            Type::Primitive => PRIMITIVES.name_of(index).unwrap(),
-            Type::Data => &self.types[index].name,
-            Type::Enum => &self.enums[index].name,
-            Type::Union => &self.unions[index].name,
-            Type::Array => "Array",
+            Type::Primitive => Cow::Borrowed(PRIMITIVES.name_of(index).unwrap()),
+            Type::Data => Cow::Borrowed(&self.types[index].name),
+            Type::Enum => Cow::Borrowed(&self.enums[index].name),
+            Type::Union => Cow::Borrowed(&self.unions[index].name),
+            Type::Array => {
+                let ArrayType {
+                    inner_type,
+                    inner_type_index,
+                    len,
+                } = self.arrays[index];
+                let inner_type_name = self.type_name(inner_type, inner_type_index);
+
+                Cow::Owned(format!("[{inner_type_name}:{len}]"))
+            }
         }
     }
 
