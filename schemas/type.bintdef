@@ -1,0 +1,7 @@
+enum Type {
+    Primitive,
+    Data,
+    Enum,
+    Union,
+    Array,
+}

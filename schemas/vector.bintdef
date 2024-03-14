@@ -1,0 +1,8 @@
+include type.bintdef
+
+struct Vector {
+    ptr: u64,
+    len: u64,
+    inner_type: Type,
+    inner_type_index: u64,
+}
