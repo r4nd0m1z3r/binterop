@@ -1,12 +1,13 @@
 use crate::tokenizer::Token;
 use binterop::field::Field;
-use binterop::schema::{Schema, Type, TypeData};
+use binterop::schema::Schema;
 use binterop::types::array::ArrayType;
 use binterop::types::data::DataType;
 use binterop::types::pointer::PointerType;
 use binterop::types::primitives::INTEGER_PRIMITIVE_NAMES;
 use binterop::types::r#enum::EnumType;
 use binterop::types::union::UnionType;
+use binterop::types::{Type, TypeData};
 
 #[derive(Debug, Default)]
 pub struct Generator {
@@ -116,6 +117,10 @@ impl Generator {
         Ok(inner_type_size)
     }
 
+    fn process_vector(&mut self, name: &str) -> Result<usize, String> {
+        todo!()
+    }
+
     fn process_field(&mut self, name: &str) -> Result<usize, String> {
         let TypeData {
             index,
@@ -153,6 +158,8 @@ impl Generator {
                     self.process_pointer(name)?
                 } else if name.starts_with('[') && name.ends_with(']') {
                     self.process_array(name)?
+                } else if name.starts_with('<') && name.ends_with('>') {
+                    self.process_vector(name)?
                 } else {
                     self.process_field(name)?
                 };

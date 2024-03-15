@@ -1,4 +1,4 @@
-use crate::schema::Type;
+use crate::types::Type;
 use serde::{Deserialize, Serialize};
 use std::mem::size_of;
 

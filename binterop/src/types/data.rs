@@ -1,6 +1,7 @@
 use crate::field::Field;
-use crate::schema::{Schema, Type};
+use crate::schema::Schema;
 use crate::types::primitives::{PrimitiveType, PRIMITIVES};
+use crate::types::Type;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]

@@ -72,7 +72,9 @@ impl<'a> Tokenizer<'a> {
             "union" => Ok(Some(Token::Union)),
             _ => {
                 if chunk.chars().all(char::is_alphanumeric)
-                    || (self.next_is_type && chunk.starts_with('[') && chunk.ends_with(']'))
+                    || (self.next_is_type
+                        && chunk.starts_with(['[', '<'])
+                        && chunk.ends_with([']', '>']))
                     || (self.next_is_type && chunk.ends_with('*'))
                 {
                     if self.next_is_type {

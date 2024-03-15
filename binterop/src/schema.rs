@@ -4,34 +4,9 @@ use crate::types::pointer::PointerType;
 use crate::types::primitives::PRIMITIVES;
 use crate::types::r#enum::EnumType;
 use crate::types::union::UnionType;
+use crate::types::{Type, TypeData};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
-
-pub struct TypeData {
-    pub index: usize,
-    pub r#type: Type,
-    pub size: usize,
-}
-impl TypeData {
-    pub fn new(index: usize, r#type: Type, size: usize) -> Self {
-        Self {
-            index,
-            r#type,
-            size,
-        }
-    }
-}
-
-#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
-pub enum Type {
-    #[default]
-    Primitive,
-    Data,
-    Enum,
-    Union,
-    Array,
-    Pointer,
-}
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Schema {
