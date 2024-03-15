@@ -66,6 +66,74 @@ impl Generator {
         Ok(())
     }
 
+    fn process_pointer(&mut self, name: &str) -> Result<usize, String> {
+        let TypeData { index, r#type, .. } = self
+            .schema
+            .type_data_by_name(name.strip_suffix('*').unwrap())?;
+        let pointer_type = PointerType::new(r#type, index);
+
+        let new_field = self.schema.types[self.current_index]
+            .fields
+            .last_mut()
+            .unwrap();
+        new_field.r#type = Type::Pointer;
+        new_field.type_index = self.schema.pointers.len();
+        new_field.offset = self.current_offset;
+
+        self.schema.pointers.push(pointer_type);
+
+        Ok(PointerType::size())
+    }
+
+    fn process_array(&mut self, name: &str) -> Result<usize, String> {
+        let separator_index = name
+            .chars()
+            .position(|ch| ch == ':')
+            .ok_or("Expected array type but failed to find separator!")?;
+
+        let TypeData {
+            index,
+            r#type,
+            size: inner_type_size,
+        } = self.schema.type_data_by_name(&name[1..separator_index])?;
+
+        let array_len = name[separator_index + 1..name.len() - 1]
+            .parse::<usize>()
+            .map_err(|err| format!("Failed to parse array len! Error: {err:?}"))?;
+
+        let array_type = ArrayType::new(r#type, index, array_len);
+
+        let new_field = self.schema.types[self.current_index]
+            .fields
+            .last_mut()
+            .unwrap();
+        new_field.r#type = Type::Array;
+        new_field.type_index = self.schema.arrays.len();
+        new_field.offset = self.current_offset;
+
+        self.schema.arrays.push(array_type);
+
+        Ok(inner_type_size)
+    }
+
+    fn process_field(&mut self, name: &str) -> Result<usize, String> {
+        let TypeData {
+            index,
+            r#type,
+            size,
+        } = self.schema.type_data_by_name(name)?;
+
+        let new_field = self.schema.types[self.current_index]
+            .fields
+            .last_mut()
+            .unwrap();
+        new_field.r#type = r#type;
+        new_field.type_index = index;
+        new_field.offset = self.current_offset;
+
+        Ok(size)
+    }
+
     fn process_type(&mut self, name: &str) -> Result<(), String> {
         if (self.currently_defining == Some(Type::Enum)
             || self.currently_defining == Some(Type::Union))
@@ -74,8 +142,6 @@ impl Generator {
             return Err(format!("{name:?} cannot represent enum state since it was not found in integer primitive list!\n\tAvailable integer primitives: {INTEGER_PRIMITIVE_NAMES:?}"));
         }
 
-        let type_data = self.schema.type_data_by_name(name);
-
         match self.currently_defining {
             Some(Type::Enum) => {}
             Some(Type::Union) => {
@@ -83,69 +149,13 @@ impl Generator {
                     self.schema.type_data_by_name(name)?.index;
             }
             _ => {
-                let size;
-
-                if name.ends_with('*') {
-                    let TypeData { index, r#type, .. } = self
-                        .schema
-                        .type_data_by_name(name.strip_suffix('*').unwrap())?;
-                    let pointer_type = PointerType::new(r#type, index);
-
-                    let new_field = self.schema.types[self.current_index]
-                        .fields
-                        .last_mut()
-                        .unwrap();
-                    new_field.r#type = Type::Pointer;
-                    new_field.type_index = self.schema.pointers.len();
-                    new_field.offset = self.current_offset;
-
-                    self.schema.pointers.push(pointer_type);
-                    size = PointerType::size();
+                let size = if name.ends_with('*') {
+                    self.process_pointer(name)?
                 } else if name.starts_with('[') && name.ends_with(']') {
-                    let separator_index = name
-                        .chars()
-                        .position(|ch| ch == ':')
-                        .ok_or("Expected array type but failed to find separator!")?;
-
-                    let TypeData {
-                        index,
-                        r#type,
-                        size: inner_type_size,
-                    } = self.schema.type_data_by_name(&name[1..separator_index])?;
-                    size = inner_type_size;
-
-                    let array_len = name[separator_index + 1..name.len() - 1]
-                        .parse::<usize>()
-                        .map_err(|err| format!("Failed to parse array len! Error: {err:?}"))?;
-
-                    let array_type = ArrayType::new(r#type, index, array_len);
-
-                    let new_field = self.schema.types[self.current_index]
-                        .fields
-                        .last_mut()
-                        .unwrap();
-                    new_field.r#type = Type::Array;
-                    new_field.type_index = self.schema.arrays.len();
-                    new_field.offset = self.current_offset;
-
-                    self.schema.arrays.push(array_type);
+                    self.process_array(name)?
                 } else {
-                    let TypeData {
-                        index,
-                        r#type,
-                        size: type_size,
-                    } = type_data?;
-
-                    size = type_size;
-
-                    let new_field = self.schema.types[self.current_index]
-                        .fields
-                        .last_mut()
-                        .unwrap();
-                    new_field.r#type = r#type;
-                    new_field.type_index = index;
-                    new_field.offset = self.current_offset;
-                }
+                    self.process_field(name)?
+                };
 
                 self.current_offset += size;
             }

@@ -126,9 +126,7 @@ fn process_text(path: &Path, text: &str) -> Result<Vec<String>, String> {
 }
 
 fn main() {
-    let args_iter = env::args();
-
-    for path in args_iter
+    for path in env::args()
         .skip(1)
         .map(PathBuf::from)
         .flat_map(fs::canonicalize)
