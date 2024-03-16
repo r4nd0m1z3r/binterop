@@ -18,7 +18,7 @@ impl CGenerator {
     fn binterop_primitive_name_to_c_primitive_name(name: &str) -> Option<String> {
         match name.chars().next().unwrap() {
             'i' => Some(format!("int{}_t", name.strip_prefix('i').unwrap())),
-            'u' => Some(format!("int{}_t", name.strip_prefix('u').unwrap())),
+            'u' => Some(format!("uint{}_t", name.strip_prefix('u').unwrap())),
             'f' => {
                 let bitness = name.strip_prefix('f').unwrap().parse::<u8>().unwrap();
                 if bitness == 32 {

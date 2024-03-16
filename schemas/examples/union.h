@@ -8,12 +8,12 @@ typedef struct __attribute__((packed)) {
 
 typedef struct __attribute__((packed)) {
 	SomeOtherType* ptr;
-	int64_t len;
+	uint64_t len;
 } ArraySomeOtherType;
 
 typedef struct __attribute__((packed)) {
 	bool some_bool;
-	int16_t some_uint;
+	uint16_t some_uint;
 	float some_float;
 	int64_t some_int;
 	SomeOtherType* some_pointer;
@@ -30,7 +30,7 @@ typedef enum {
 } Color;
 
 typedef struct __attribute__((packed)) {
-	int8_t repr;
+	uint8_t repr;
 	union {
 		Color color;
 		SomeStruct some_struct;
