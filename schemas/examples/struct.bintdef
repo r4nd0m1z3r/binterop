@@ -11,4 +11,5 @@ struct SomeStruct {
     some_float_array: [f32:10],
     some_other_type: SomeOtherType,
     some_other_type_array: [SomeOtherType:3],
+    some_other_type_heap_array: <SomeOtherType>,
 }

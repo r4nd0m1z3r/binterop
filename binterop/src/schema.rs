@@ -1,5 +1,6 @@
 use crate::types::array::ArrayType;
 use crate::types::data::DataType;
+use crate::types::heap_array::HeapArrayType;
 use crate::types::pointer::PointerType;
 use crate::types::primitives::PRIMITIVES;
 use crate::types::r#enum::EnumType;
@@ -16,6 +17,7 @@ pub struct Schema {
     pub unions: Vec<UnionType>,
     pub arrays: Vec<ArrayType>,
     pub pointers: Vec<PointerType>,
+    pub heap_arrays: Vec<HeapArrayType>,
 }
 impl Schema {
     pub fn new(
@@ -25,6 +27,7 @@ impl Schema {
         unions: &[UnionType],
         arrays: &[ArrayType],
         pointers: &[PointerType],
+        heap_arrays: &[HeapArrayType],
     ) -> Self {
         Self {
             root_type_index,
@@ -33,6 +36,7 @@ impl Schema {
             unions: unions.to_vec(),
             arrays: arrays.to_vec(),
             pointers: pointers.to_vec(),
+            heap_arrays: heap_arrays.to_vec(),
         }
     }
 
@@ -51,6 +55,15 @@ impl Schema {
                 let inner_type_name = self.type_name(inner_type, inner_type_index);
 
                 Cow::Owned(format!("[{inner_type_name}:{len}]"))
+            }
+            Type::HeapArray => {
+                let HeapArrayType {
+                    inner_type,
+                    inner_type_index,
+                } = self.heap_arrays[index];
+                let inner_type_name = self.type_name(inner_type, inner_type_index);
+
+                Cow::Owned(format!("<{inner_type_name}>"))
             }
             Type::Pointer => {
                 let PointerType {
@@ -77,6 +90,7 @@ impl Schema {
                 .arrays
                 .get(index)
                 .map(|array_type| array_type.size(self)),
+            Type::HeapArray => Some(HeapArrayType::size()),
             Type::Pointer => Some(PointerType::size()),
         }
     }

@@ -1,6 +1,8 @@
 use crate::language_generators::LanguageGenerator;
 use binterop::schema::Schema;
 use binterop::types::data::DataType;
+use binterop::types::heap_array::HeapArrayType;
+use binterop::types::primitives::PRIMITIVES;
 use binterop::types::r#enum::EnumType;
 use binterop::types::union::UnionType;
 use binterop::types::Type;
@@ -42,10 +44,15 @@ impl CGenerator {
 
         match r#type {
             Type::Primitive | Type::Array | Type::Pointer => Ok(()),
+            Type::HeapArray => {
+                let heap_array_type = schema.heap_arrays.get(type_index).ok_or(format!(
+                    "{referer_name} references vector type which is not present in schema!"
+                ))?;
+                self.generate_heap_array_type(schema, heap_array_type)
+            }
             Type::Data => {
                 let data_type = schema.types.get(type_index).ok_or(format!(
-                    "{} references type which is not present in schema!",
-                    referer_name
+                    "{referer_name} references type which is not present in schema!",
                 ))?;
                 self.generate_data_type(schema, data_type)
             }
@@ -66,6 +73,32 @@ impl CGenerator {
                 self.generate_union_type(schema, union_type)
             }
         }
+    }
+
+    fn generate_heap_array_type(
+        &mut self,
+        schema: &Schema,
+        heap_array_type: &HeapArrayType,
+    ) -> Result<(), String> {
+        let heap_array_data_type_name = format!(
+            "Array{}",
+            schema.type_name(heap_array_type.inner_type, heap_array_type.inner_type_index)
+        );
+
+        let compatible_pointer_type_index = schema
+            .pointers
+            .iter()
+            .position(|pointer_type| pointer_type.inner_type == heap_array_type.inner_type)
+            .ok_or("Failed to find compatible pointer type in schema!")?;
+        let pointer_field_data = ("ptr", Type::Pointer, compatible_pointer_type_index);
+        let len_field_data = ("len", Type::Primitive, PRIMITIVES.index_of("u64").unwrap());
+
+        let data_type = DataType::new(
+            schema,
+            &heap_array_data_type_name,
+            &[pointer_field_data, len_field_data],
+        );
+        self.generate_data_type(schema, &data_type)
     }
 
     fn generate_data_type(&mut self, schema: &Schema, data_type: &DataType) -> Result<(), String> {
@@ -95,6 +128,16 @@ impl CGenerator {
                                 inner_type_name.to_string()
                             }
                         }
+                        Type::HeapArray => {
+                            let heap_array_type = schema.heap_arrays[field.type_index];
+                            format!(
+                                "Array{}",
+                                schema.type_name(
+                                    heap_array_type.inner_type,
+                                    heap_array_type.inner_type_index
+                                )
+                            )
+                        }
                         _ => type_name.to_string(),
                     });
 
@@ -106,10 +149,10 @@ impl CGenerator {
             fields_text.push_str(&format!("\t{field_type_name} {field_name};\n"));
         }
 
-        self.output
-            .push_str("typedef struct __attribute__((packed)) {\n");
-        self.output.push_str(&fields_text);
-        self.output.push_str(&format!("}} {};\n\n", data_type.name));
+        self.output.push_str(&format!(
+            "typedef struct __attribute__((packed)) {{\n{fields_text}}} {};\n\n",
+            data_type.name
+        ));
 
         self.generated_type_names.insert(data_type.name.clone());
 
@@ -122,9 +165,10 @@ impl CGenerator {
             variants_text.push_str(&format!("\t{variant},\n"));
         }
 
-        self.output.push_str("typedef enum {\n");
-        self.output.push_str(&variants_text);
-        self.output.push_str(&format!("}} {};\n\n", enum_type.name));
+        self.output.push_str(&format!(
+            "typedef enum {{\n{variants_text}}} {};\n\n",
+            enum_type.name
+        ));
 
         self.generated_type_names.insert(enum_type.name.clone());
     }
@@ -161,12 +205,10 @@ impl CGenerator {
         }
         union_text.push_str("\t};\n");
 
-        self.output
-            .push_str("typedef struct __attribute__((packed)) {\n");
-        self.output.push_str(&repr_field_text);
-        self.output.push_str(&union_text);
-        self.output
-            .push_str(&format!("}} {};\n\n", union_type.name));
+        self.output.push_str(&format!(
+            "typedef struct __attribute__((packed)) {{\n{repr_field_text}{union_text}}} {};\n\n",
+            union_type.name
+        ));
 
         self.generated_type_names.insert(union_type.name.clone());
 
@@ -176,7 +218,7 @@ impl CGenerator {
 impl LanguageGenerator for CGenerator {
     fn feed(&mut self, schema: &Schema) -> Result<(), String> {
         self.output
-            .push_str("#include <stdint.h>\n#include <stdbool.h>\n\n");
+            .push_str("#include <stdint.h>\n#include <stdbool.h>\n#include <stdlib.h>\n\n");
 
         for data_type in &schema.types {
             self.generate_data_type(schema, data_type)?;

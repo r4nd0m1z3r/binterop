@@ -11,7 +11,7 @@ fn generate_vec3_schema() -> Schema {
     let f32 = PRIMITIVES["f32"];
     let vec3 = DataType::from_primitives("Vec3", &[("x", f32), ("y", f32), ("z", f32)]);
 
-    Schema::new(0, &[vec3], &[], &[], &[], &[])
+    Schema::new(0, &[vec3], &[], &[], &[], &[], &[])
 }
 
 #[test]
