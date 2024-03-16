@@ -214,6 +214,18 @@ impl CGenerator {
 
         Ok(())
     }
+
+    fn generate_helpers(&mut self, schema: &Schema) {
+        for heap_array_type in &schema.heap_arrays {
+            let inner_type_name =
+                schema.type_name(heap_array_type.inner_type, heap_array_type.inner_type_index);
+            let type_name = format!("Array{inner_type_name}",);
+
+            self.output.push_str(&format!(
+                "{type_name} {type_name}_new(uint64_t len) {{ return ({type_name}){{ malloc(sizeof({inner_type_name}) * len), len }}; }}\n"
+            ))
+        }
+    }
 }
 impl LanguageGenerator for CGenerator {
     fn feed(&mut self, schema: &Schema) -> Result<(), String> {
@@ -233,6 +245,7 @@ impl LanguageGenerator for CGenerator {
                 self.generate_union_type(schema, union_type)?;
             }
         }
+        self.generate_helpers(schema);
 
         Ok(())
     }

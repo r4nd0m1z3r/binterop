@@ -37,3 +37,4 @@ typedef struct __attribute__((packed)) {
 	};
 } SomeUnion;
 
+ArraySomeOtherType ArraySomeOtherType_new(uint64_t len) { return (ArraySomeOtherType){ malloc(sizeof(SomeOtherType) * len), len }; }

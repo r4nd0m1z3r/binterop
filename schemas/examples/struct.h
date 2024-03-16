@@ -23,3 +23,4 @@ typedef struct __attribute__((packed)) {
 	float some_float_array[10];
 } SomeStruct;
 
+ArraySomeOtherType ArraySomeOtherType_new(uint64_t len) { return (ArraySomeOtherType){ malloc(sizeof(SomeOtherType) * len), len }; }
