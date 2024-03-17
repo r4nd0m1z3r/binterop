@@ -16,7 +16,13 @@ pub struct CGenerator {
 }
 impl CGenerator {
     fn binterop_primitive_name_to_c_primitive_name(name: &str) -> Option<String> {
-        match name.chars().next().unwrap() {
+        let (name, is_pointer) = if let Some(pointer_inner_type_name) = name.strip_suffix('*') {
+            (pointer_inner_type_name, true)
+        } else {
+            (name, false)
+        };
+
+        let mut result = match name.chars().next().unwrap() {
             'i' => Some(format!("int{}_t", name.strip_prefix('i').unwrap())),
             'u' => Some(format!("uint{}_t", name.strip_prefix('u').unwrap())),
             'f' => {
@@ -30,7 +36,15 @@ impl CGenerator {
                 }
             }
             _ => None,
+        };
+
+        if is_pointer {
+            if let Some(type_name) = result.as_mut() {
+                type_name.push('*')
+            }
         }
+
+        result
     }
 
     fn generate_type(
@@ -85,6 +99,13 @@ impl CGenerator {
             schema.type_name(heap_array_type.inner_type, heap_array_type.inner_type_index)
         );
 
+        if self
+            .generated_type_names
+            .contains(&heap_array_data_type_name)
+        {
+            return Ok(());
+        }
+
         let compatible_pointer_type_index = schema
             .pointers
             .iter()
@@ -134,7 +155,7 @@ impl CGenerator {
                                 "Array{}",
                                 schema.type_name(
                                     heap_array_type.inner_type,
-                                    heap_array_type.inner_type_index
+                                    heap_array_type.inner_type_index,
                                 )
                             )
                         }
@@ -216,14 +237,25 @@ impl CGenerator {
     }
 
     fn generate_helpers(&mut self, schema: &Schema) {
+        let mut generated_type_names = HashSet::new();
+
         for heap_array_type in &schema.heap_arrays {
             let inner_type_name =
                 schema.type_name(heap_array_type.inner_type, heap_array_type.inner_type_index);
-            let type_name = format!("Array{inner_type_name}",);
+            let c_inner_type_name =
+                Self::binterop_primitive_name_to_c_primitive_name(&inner_type_name)
+                    .unwrap_or(inner_type_name.to_string());
+            let type_name = format!("Array{inner_type_name}");
+
+            if generated_type_names.contains(&type_name) {
+                continue;
+            }
 
             self.output.push_str(&format!(
-                "{type_name} {type_name}_new(uint64_t len) {{ return ({type_name}){{ malloc(sizeof({inner_type_name}) * len), len }}; }}\n"
-            ))
+                "{type_name} {type_name}_new(uint64_t len) {{ return ({type_name}){{ malloc(sizeof({c_inner_type_name}) * len), len }}; }}\n"
+            ));
+
+            generated_type_names.insert(type_name);
         }
     }
 }
