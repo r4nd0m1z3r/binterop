@@ -109,8 +109,12 @@ impl CGenerator {
         let compatible_pointer_type_index = schema
             .pointers
             .iter()
-            .position(|pointer_type| pointer_type.inner_type == heap_array_type.inner_type)
+            .position(|pointer_type| {
+                pointer_type.inner_type == heap_array_type.inner_type
+                    && pointer_type.inner_type_index == heap_array_type.inner_type_index
+            })
             .ok_or("Failed to find compatible pointer type in schema!")?;
+
         let pointer_field_data = ("ptr", Type::Pointer, compatible_pointer_type_index);
         let len_field_data = ("len", Type::Primitive, PRIMITIVES.index_of("u64").unwrap());
 
@@ -252,7 +256,7 @@ impl CGenerator {
             }
 
             self.output.push_str(&format!(
-                "{type_name} {type_name}_new(uint64_t len) {{ return ({type_name}){{ malloc(sizeof({c_inner_type_name}) * len), len }}; }}\n"
+                "inline {type_name} {type_name}_new(uint64_t len) {{ return ({type_name}){{ ({c_inner_type_name}*)malloc(sizeof({c_inner_type_name}) * len), len }}; }}\n"
             ));
 
             generated_type_names.insert(type_name);
