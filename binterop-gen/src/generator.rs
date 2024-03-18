@@ -10,7 +10,7 @@ use binterop::types::r#enum::EnumType;
 use binterop::types::union::UnionType;
 use binterop::types::{Type, TypeData};
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Generator {
     currently_defining: Option<Type>,
     should_create_type: bool,
@@ -19,6 +19,22 @@ pub struct Generator {
     current_index: usize,
     current_offset: usize,
     schema: Schema,
+}
+impl Default for Generator {
+    fn default() -> Self {
+        Self {
+            currently_defining: None,
+            should_create_type: false,
+            next_is_repr_type: false,
+            root_index: 0,
+            current_index: 0,
+            current_offset: 0,
+            schema: Schema {
+                is_packed: true,
+                ..Default::default()
+            },
+        }
+    }
 }
 impl Generator {
     fn process_ident(&mut self, ident: &str) -> Result<(), String> {

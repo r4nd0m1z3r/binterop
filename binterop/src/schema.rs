@@ -12,6 +12,7 @@ use std::borrow::Cow;
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Schema {
     pub root_type_index: usize,
+    pub is_packed: bool,
     pub types: Vec<DataType>,
     pub enums: Vec<EnumType>,
     pub unions: Vec<UnionType>,
@@ -22,6 +23,7 @@ pub struct Schema {
 impl Schema {
     pub fn new(
         root_type_index: usize,
+        is_packed: bool,
         types: &[DataType],
         enums: &[EnumType],
         unions: &[UnionType],
@@ -31,6 +33,7 @@ impl Schema {
     ) -> Self {
         Self {
             root_type_index,
+            is_packed,
             types: types.to_vec(),
             enums: enums.to_vec(),
             unions: unions.to_vec(),

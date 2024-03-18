@@ -174,8 +174,14 @@ impl CGenerator {
             fields_text.push_str(&format!("\t{field_type_name} {field_name};\n"));
         }
 
+        let packing_attribute = if schema.is_packed {
+            " __attribute__((packed))"
+        } else {
+            ""
+        };
+
         self.output.push_str(&format!(
-            "typedef struct __attribute__((packed)) {{\n{fields_text}}} {};\n\n",
+            "typedef struct{packing_attribute} {{\n{fields_text}}} {};\n\n",
             data_type.name
         ));
 

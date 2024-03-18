@@ -2,16 +2,16 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-typedef struct __attribute__((packed)) {
+typedef struct {
 	double a;
 } SomeOtherType;
 
-typedef struct __attribute__((packed)) {
+typedef struct {
 	SomeOtherType* ptr;
 	uint64_t len;
 } ArraySomeOtherType;
 
-typedef struct __attribute__((packed)) {
+typedef struct {
 	bool some_bool;
 	uint16_t some_uint;
 	float some_float;
@@ -23,4 +23,4 @@ typedef struct __attribute__((packed)) {
 	float some_float_array[10];
 } SomeStruct;
 
-ArraySomeOtherType ArraySomeOtherType_new(uint64_t len) { return (ArraySomeOtherType){ malloc(sizeof(SomeOtherType) * len), len }; }
+static inline ArraySomeOtherType ArraySomeOtherType_new(uint64_t len) { return (ArraySomeOtherType){ (SomeOtherType*)malloc(sizeof(SomeOtherType) * len), len }; }
