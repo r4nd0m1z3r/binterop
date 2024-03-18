@@ -256,7 +256,7 @@ impl CGenerator {
             }
 
             self.output.push_str(&format!(
-                "inline {type_name} {type_name}_new(uint64_t len) {{ return ({type_name}){{ ({c_inner_type_name}*)malloc(sizeof({c_inner_type_name}) * len), len }}; }}\n"
+                "static inline {type_name} {type_name}_new(uint64_t len) {{ return ({type_name}){{ ({c_inner_type_name}*)malloc(sizeof({c_inner_type_name}) * len), len }}; }}\n"
             ));
 
             generated_type_names.insert(type_name);
