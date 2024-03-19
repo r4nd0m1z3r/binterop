@@ -8,6 +8,8 @@ use binterop::types::union::UnionType;
 use binterop::types::Type;
 use case::CaseExt;
 use std::collections::HashSet;
+use std::fs;
+use std::path::Path;
 
 #[derive(Default, Debug)]
 pub struct CGenerator {
@@ -293,11 +295,8 @@ impl LanguageGenerator for CGenerator {
         Ok(())
     }
 
-    fn output(self) -> String {
-        self.output
-    }
-
-    fn output_extension(&self) -> String {
-        "h".to_string()
+    fn write(&self, schema_path: &Path) -> Result<(), String> {
+        fs::write(schema_path.with_extension("h"), &self.output)
+            .map_err(|err| format!("Failed to write generated language file! Error: {err}"))
     }
 }

@@ -120,24 +120,22 @@ fn generate_schema(
     Ok(schema)
 }
 
-fn generate_lang_files(gen_name: &str, schema: &Schema) -> Result<(String, String), String> {
+fn generate_lang_files(path: &Path, gen_name: &str, schema: &Schema) -> Result<(), String> {
     match gen_name {
         "c" => {
             let mut generator = CGenerator::default();
             generator.feed(schema)?;
+            generator.write(path)?;
 
-            Ok((generator.output_extension(), generator.output()))
+            Ok(())
         }
         _ => Err(format!("Unknown language generator name: {gen_name}")),
     }
 }
 
 fn language_generator(path: &Path, gen_name: &str, schema: &Schema) -> Result<(), String> {
-    let (ext, output) = generate_lang_files(gen_name, schema)
-        .map_err(|err| format!("Failed to generate language files! Error: {err}"))?;
-
-    fs::write(path.with_extension(ext), output)
-        .map_err(|err| format!("Failed to write generated language file! Error: {err}"))
+    generate_lang_files(path, gen_name, schema)
+        .map_err(|err| format!("Failed to generate language files! Error: {err}"))
 }
 
 fn process_text(path: &Path, text: &str) -> Result<Vec<String>, String> {
