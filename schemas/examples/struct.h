@@ -23,5 +23,5 @@ typedef struct {
 	float some_float_array[10];
 } SomeStruct;
 
-static inline ArraySomeOtherType ArraySomeOtherType_new(uint64_t len) { return (ArraySomeOtherType){ (SomeOtherType*)malloc(sizeof(SomeOtherType) * len), len }; }
+static inline ArraySomeOtherType ArraySomeOtherType_new(uint64_t len) { return (ArraySomeOtherType){ (SomeOtherType*)calloc(len, sizeof(SomeOtherType)), len }; }
 static inline void ArraySomeOtherType_resize(ArraySomeOtherType* array, uint64_t new_len) { array->ptr = realloc(array->ptr, sizeof(SomeOtherType) * new_len); array->len = new_len; }

@@ -1,1 +1,1 @@
-{"root_type_index":0,"is_packed":false,"types":[],"enums":[{"name":"Color","variants":["Red","Green","Blue"]}],"unions":[],"arrays":[],"pointers":[],"heap_arrays":[]}
+{"is_packed":false,"types":[],"enums":[{"name":"Color","variants":["Red","Green","Blue"]}],"unions":[],"arrays":[],"pointers":[],"heap_arrays":[]}
