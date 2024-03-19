@@ -6,7 +6,6 @@ use std::path::PathBuf;
 #[derive(Clone, Debug)]
 pub enum Token<'a> {
     Ident(Cow<'a, str>),
-    Root,
     DefBegin,
     DefEnd,
     Struct,
@@ -64,7 +63,6 @@ impl<'a> Tokenizer<'a> {
 
                 self.match_chunk(this_chunk)
             }
-            "root" => Ok(Some(Token::Root)),
             "{" => Ok(Some(Token::DefBegin)),
             "}" => Ok(Some(Token::DefEnd)),
             "struct" => Ok(Some(Token::Struct)),

@@ -11,7 +11,6 @@ use std::borrow::Cow;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Schema {
-    pub root_type_index: usize,
     pub is_packed: bool,
     pub types: Vec<DataType>,
     pub enums: Vec<EnumType>,
@@ -22,7 +21,6 @@ pub struct Schema {
 }
 impl Schema {
     pub fn new(
-        root_type_index: usize,
         is_packed: bool,
         types: &[DataType],
         enums: &[EnumType],
@@ -32,7 +30,6 @@ impl Schema {
         heap_arrays: &[HeapArrayType],
     ) -> Self {
         Self {
-            root_type_index,
             is_packed,
             types: types.to_vec(),
             enums: enums.to_vec(),
@@ -154,13 +151,5 @@ impl Schema {
             .collect::<Vec<_>>();
 
         Err(format!("Failed to find type with name {name:?}!\n\tAvailable types: {available_type_names:?}\n\tAvailable enums: {available_enum_names:?}\n\tAvailable unions: {available_union_names:?}"))
-    }
-
-    pub fn root_size(&self) -> usize {
-        self.types[self.root_type_index].size(self)
-    }
-
-    pub fn allocate_root(&self, count: usize) -> Vec<u8> {
-        vec![0; self.root_size() * count]
     }
 }

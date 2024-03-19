@@ -15,7 +15,6 @@ pub struct Generator {
     currently_defining: Option<Type>,
     should_create_type: bool,
     next_is_repr_type: bool,
-    root_index: usize,
     current_index: usize,
     current_offset: usize,
     schema: Schema,
@@ -26,7 +25,6 @@ impl Default for Generator {
             currently_defining: None,
             should_create_type: false,
             next_is_repr_type: false,
-            root_index: 0,
             current_index: 0,
             current_offset: 0,
             schema: Schema {
@@ -228,7 +226,6 @@ impl Generator {
                     _ => false,
                 };
             }
-            Token::Root => self.root_index = self.schema.types.len(),
             Token::DefBegin => {
                 self.next_is_repr_type = false;
             }
@@ -255,7 +252,6 @@ impl Generator {
     }
 
     pub(crate) fn output(&mut self) -> Schema {
-        self.schema.root_type_index = self.root_index;
         self.schema.clone()
     }
 }
