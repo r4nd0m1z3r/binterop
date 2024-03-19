@@ -86,6 +86,7 @@ fn add_padding(schema: &mut Schema) {
         .flat_map(|data_type| data_type.fields.iter_mut())
         .zip(aligned_offsets)
     {
+        field.padding_size = offset - field.offset;
         field.offset = offset;
     }
 

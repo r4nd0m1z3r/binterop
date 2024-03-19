@@ -8,14 +8,22 @@ pub struct Field {
     pub r#type: Type,
     pub type_index: usize,
     pub offset: usize,
+    pub padding_size: usize,
 }
 impl Field {
-    pub fn new(name: &str, r#type: Type, type_index: usize, offset: usize) -> Self {
+    pub fn new(
+        name: &str,
+        r#type: Type,
+        type_index: usize,
+        offset: usize,
+        padding_size: usize,
+    ) -> Self {
         Self {
             name: name.to_string(),
             r#type,
             type_index,
             offset,
+            padding_size,
         }
     }
 
@@ -25,6 +33,7 @@ impl Field {
             r#type: Type::Primitive,
             type_index: 0,
             offset: 0,
+            padding_size: 0,
         }
     }
 

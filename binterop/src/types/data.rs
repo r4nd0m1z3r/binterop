@@ -20,7 +20,7 @@ impl DataType {
                     panic!("Provided schema does not contain type {type:?} with index {index}!")
                 });
 
-                Field::new(name, r#type, type_index, index * type_size)
+                Field::new(name, r#type, type_index, index * type_size, 0)
             })
             .collect();
 
@@ -45,7 +45,7 @@ impl DataType {
                 let primitive_index = PRIMITIVES.index_of(r#type.name).unwrap();
                 let primitive_size = PRIMITIVES[name].size;
 
-                let field = Field::new(name, Type::Primitive, primitive_index, previous_offset);
+                let field = Field::new(name, Type::Primitive, primitive_index, previous_offset, 0);
 
                 previous_offset += primitive_size;
 
@@ -67,6 +67,9 @@ impl DataType {
     }
 
     pub fn size(&self, schema: &Schema) -> usize {
-        self.fields.iter().map(|field| field.size(schema)).sum()
+        self.fields
+            .iter()
+            .map(|field| field.size(schema) + field.padding_size)
+            .sum()
     }
 }
