@@ -262,7 +262,8 @@ impl CGenerator {
             }
 
             self.output.push_str(&format!(
-                "static inline {type_name} {type_name}_new(uint64_t len) {{ return ({type_name}){{ ({c_inner_type_name}*)malloc(sizeof({c_inner_type_name}) * len), len }}; }}\n"
+                "static inline {type_name} {type_name}_new(uint64_t len) {{ return ({type_name}){{ ({c_inner_type_name}*)malloc(sizeof({c_inner_type_name}) * len), len }}; }}\n\
+                static inline void {type_name}_resize({type_name}* array, uint64_t new_len) {{ array->ptr = realloc(array->ptr, sizeof({c_inner_type_name}) * new_len); array->len = new_len; }}\n"
             ));
 
             generated_type_names.insert(type_name);
