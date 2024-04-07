@@ -1,10 +1,10 @@
 use crate::language_generators::LanguageGenerator;
 use binterop::schema::Schema;
 use binterop::types::data::DataType;
-use binterop::types::heap_array::HeapArrayType;
 use binterop::types::primitives::PRIMITIVES;
 use binterop::types::r#enum::EnumType;
 use binterop::types::union::UnionType;
+use binterop::types::vector::VectorType;
 use binterop::types::Type;
 use case::CaseExt;
 use std::collections::HashSet;
@@ -60,8 +60,8 @@ impl CGenerator {
 
         match r#type {
             Type::Primitive | Type::Array | Type::Pointer => Ok(()),
-            Type::HeapArray => {
-                let heap_array_type = schema.heap_arrays.get(type_index).ok_or(format!(
+            Type::Vector => {
+                let heap_array_type = schema.vectors.get(type_index).ok_or(format!(
                     "{referer_name} references vector type which is not present in schema!"
                 ))?;
                 self.generate_heap_array_type(schema, heap_array_type)
@@ -94,7 +94,7 @@ impl CGenerator {
     fn generate_heap_array_type(
         &mut self,
         schema: &Schema,
-        heap_array_type: &HeapArrayType,
+        heap_array_type: &VectorType,
     ) -> Result<(), String> {
         let heap_array_data_type_name = format!(
             "Array{}",
@@ -119,11 +119,16 @@ impl CGenerator {
 
         let pointer_field_data = ("ptr", Type::Pointer, compatible_pointer_type_index);
         let len_field_data = ("len", Type::Primitive, PRIMITIVES.index_of("u64").unwrap());
+        let capacity_field_data = (
+            "capacity",
+            Type::Primitive,
+            PRIMITIVES.index_of("u64").unwrap(),
+        );
 
         let data_type = DataType::new(
             schema,
             &heap_array_data_type_name,
-            &[pointer_field_data, len_field_data],
+            &[pointer_field_data, len_field_data, capacity_field_data],
         );
         self.generate_data_type(schema, &data_type)
     }
@@ -136,7 +141,6 @@ impl CGenerator {
                 self.generate_type(schema, field.type_index, field.r#type, Some(&field.name))?;
             }
 
-            let type_name = schema.type_name(field.r#type, field.type_index);
             let field_type_name =
                 Self::binterop_primitive_name_to_c_primitive_name(type_name.as_ref())
                     .unwrap_or_else(|| match field.r#type {
@@ -155,13 +159,13 @@ impl CGenerator {
                                 inner_type_name.to_string()
                             }
                         }
-                        Type::HeapArray => {
-                            let heap_array_type = schema.heap_arrays[field.type_index];
+                        Type::Vector => {
+                            let vector_type = schema.vectors[field.type_index];
                             format!(
-                                "Array{}",
+                                "Vector{}",
                                 schema.type_name(
-                                    heap_array_type.inner_type,
-                                    heap_array_type.inner_type_index,
+                                    vector_type.inner_type,
+                                    vector_type.inner_type_index,
                                 )
                             )
                         }
@@ -211,13 +215,7 @@ impl CGenerator {
         schema: &Schema,
         union_type: &UnionType,
     ) -> Result<(), String> {
-        let repr_type_name = schema.type_name(Type::Primitive, union_type.repr_type_index);
-        let c_repr_type_name = Self::binterop_primitive_name_to_c_primitive_name(
-            repr_type_name.as_ref(),
-        )
-        .ok_or(format!(
-            "Failed to convert binterop {repr_type_name} primitive to C primitive name!"
-        ))?;
+        let c_repr_type_name = Self::binterop_primitive_name_to_c_primitive_name("i32").unwrap();
         let repr_field_text = format!("\t{c_repr_type_name} repr;\n");
 
         let mut union_text = String::from("\tunion {\n");
@@ -251,7 +249,7 @@ impl CGenerator {
     fn generate_helpers(&mut self, schema: &Schema) {
         let mut generated_type_names = HashSet::new();
 
-        for heap_array_type in &schema.heap_arrays {
+        for heap_array_type in &schema.vectors {
             let inner_type_name =
                 schema.type_name(heap_array_type.inner_type, heap_array_type.inner_type_index);
             let c_inner_type_name =
@@ -264,8 +262,14 @@ impl CGenerator {
             }
 
             self.output.push_str(&format!(
-                "static inline {type_name} {type_name}_new(uint64_t len) {{ return ({type_name}){{ ({c_inner_type_name}*)calloc(len, sizeof({c_inner_type_name})), len }}; }}\n\
-                static inline void {type_name}_resize({type_name}* array, uint64_t new_len) {{ array->ptr = realloc(array->ptr, sizeof({c_inner_type_name}) * new_len); array->len = new_len; }}\n"
+                "static inline {type_name} {type_name}_new(uint64_t len) {{
+                    return ({type_name}){{ ({c_inner_type_name}*)calloc(len, sizeof({c_inner_type_name})), len }};
+                }}
+
+                static inline void {type_name}_resize({type_name}* array, uint64_t new_len) {{
+                    array->ptr = realloc(array->ptr, sizeof({c_inner_type_name}) * new_len);
+                    array->len = new_len;
+                }}\n"
             ));
 
             generated_type_names.insert(type_name);
@@ -295,8 +299,8 @@ impl LanguageGenerator for CGenerator {
         Ok(())
     }
 
-    fn write(&self, path: &Path) -> Result<(), String> {
-        fs::write(path.with_extension("h"), &self.output)
+    fn write(&self, file_path: &Path) -> Result<(), String> {
+        fs::write(file_path.with_extension("h"), &self.output)
             .map_err(|err| format!("Failed to write generated language file! Error: {err}"))
     }
 }

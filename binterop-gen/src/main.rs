@@ -5,6 +5,7 @@ mod tokenizer;
 
 use crate::generator::Generator;
 use crate::language_generators::c_gen::CGenerator;
+use crate::language_generators::rust_gen::RustGenerator;
 use crate::language_generators::LanguageGenerator;
 use crate::optimization::{optimize_schema, SchemaOptimizations};
 use crate::tokenizer::Tokenizer;
@@ -34,6 +35,13 @@ fn generate_lang_files(path: &Path, gen_name: &str, schema: &Schema) -> Result<(
     match gen_name {
         "c" => {
             let mut generator = CGenerator::default();
+            generator.feed(schema)?;
+            generator.write(path)?;
+
+            Ok(())
+        }
+        "rust" => {
+            let mut generator = RustGenerator::default();
             generator.feed(schema)?;
             generator.write(path)?;
 

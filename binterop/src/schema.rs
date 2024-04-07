@@ -1,10 +1,10 @@
 use crate::types::array::ArrayType;
 use crate::types::data::DataType;
-use crate::types::heap_array::HeapArrayType;
 use crate::types::pointer::PointerType;
 use crate::types::primitives::PRIMITIVES;
 use crate::types::r#enum::EnumType;
 use crate::types::union::UnionType;
+use crate::types::vector::VectorType;
 use crate::types::{Type, TypeData};
 use serde::{Deserialize, Serialize};
 use std::alloc::Layout;
@@ -19,7 +19,7 @@ pub struct Schema {
     pub unions: Vec<UnionType>,
     pub arrays: Vec<ArrayType>,
     pub pointers: Vec<PointerType>,
-    pub heap_arrays: Vec<HeapArrayType>,
+    pub vectors: Vec<VectorType>,
 }
 impl Schema {
     pub fn new(
@@ -29,7 +29,7 @@ impl Schema {
         unions: &[UnionType],
         arrays: &[ArrayType],
         pointers: &[PointerType],
-        heap_arrays: &[HeapArrayType],
+        vectors: &[VectorType],
     ) -> Self {
         Self {
             is_packed,
@@ -38,7 +38,7 @@ impl Schema {
             unions: unions.to_vec(),
             arrays: arrays.to_vec(),
             pointers: pointers.to_vec(),
-            heap_arrays: heap_arrays.to_vec(),
+            vectors: vectors.to_vec(),
         }
     }
 
@@ -58,11 +58,11 @@ impl Schema {
 
                 Cow::Owned(format!("[{inner_type_name}:{len}]"))
             }
-            Type::HeapArray => {
-                let HeapArrayType {
+            Type::Vector => {
+                let VectorType {
                     inner_type,
                     inner_type_index,
-                } = self.heap_arrays[index];
+                } = self.vectors[index];
                 let inner_type_name = self.type_name(inner_type, inner_type_index);
 
                 Cow::Owned(format!("<{inner_type_name}>"))
@@ -92,7 +92,7 @@ impl Schema {
                 .arrays
                 .get(index)
                 .map(|array_type| array_type.size(self)),
-            Type::HeapArray => Some(HeapArrayType::size()),
+            Type::Vector => Some(VectorType::size()),
             Type::Pointer => Some(PointerType::size()),
         }
     }
@@ -110,7 +110,7 @@ impl Schema {
                 .arrays
                 .get(index)
                 .map(|array_type| array_type.align(self)),
-            Type::HeapArray => Some(
+            Type::Vector => Some(
                 Layout::from_size_align(size_of::<u64>() * 3, size_of::<u64>())
                     .unwrap()
                     .align(),

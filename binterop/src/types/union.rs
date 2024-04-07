@@ -1,34 +1,27 @@
 use crate::schema::Schema;
-use crate::types::primitives::PRIMITIVES;
 use crate::types::Type;
 use serde::{Deserialize, Serialize};
 use std::cmp::max;
+use std::mem::{align_of, size_of};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct UnionType {
     pub name: String,
     pub possible_types: Vec<(usize, Type)>,
-    pub repr_type_index: usize,
 }
 impl Default for UnionType {
     fn default() -> Self {
         Self {
             name: "".to_string(),
             possible_types: vec![],
-            repr_type_index: PRIMITIVES.index_of("u8").unwrap(),
         }
     }
 }
 impl UnionType {
-    pub fn new(
-        name: &str,
-        possible_types: &[(usize, Type)],
-        variant_repr_type_index: usize,
-    ) -> Self {
+    pub fn new(name: &str, possible_types: &[(usize, Type)]) -> Self {
         Self {
             name: name.to_string(),
             possible_types: possible_types.to_vec(),
-            repr_type_index: variant_repr_type_index,
         }
     }
 
@@ -40,7 +33,6 @@ impl UnionType {
     }
 
     pub fn size(&self, schema: &Schema) -> usize {
-        let repr_type_size = PRIMITIVES.index(self.repr_type_index).unwrap().size;
         let max_possible_type_size = self
             .possible_types
             .iter()
@@ -52,11 +44,11 @@ impl UnionType {
             .max()
             .unwrap();
 
-        repr_type_size + max_possible_type_size
+        size_of::<i32>() + max_possible_type_size
     }
 
     pub fn align(&self, schema: &Schema) -> usize {
-        let repr_type_align = PRIMITIVES.index(self.repr_type_index).unwrap().align;
+        let repr_type_align = align_of::<i32>();
         let max_possible_type_align = self
             .possible_types
             .iter()

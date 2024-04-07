@@ -4,11 +4,11 @@ use serde::{Deserialize, Serialize};
 use std::mem::size_of;
 
 #[derive(Copy, Clone, Default, Debug, Serialize, Deserialize)]
-pub struct HeapArrayType {
+pub struct VectorType {
     pub inner_type: Type,
     pub inner_type_index: usize,
 }
-impl HeapArrayType {
+impl VectorType {
     pub fn new(inner_type: Type, inner_type_index: usize) -> Self {
         Self {
             inner_type,
@@ -17,6 +17,6 @@ impl HeapArrayType {
     }
 
     pub fn size() -> usize {
-        PointerType::size() + size_of::<u64>()
+        PointerType::size() + size_of::<u64>() * 2
     }
 }

@@ -3,11 +3,11 @@ use binterop::field::Field;
 use binterop::schema::Schema;
 use binterop::types::array::ArrayType;
 use binterop::types::data::DataType;
-use binterop::types::heap_array::HeapArrayType;
 use binterop::types::pointer::PointerType;
 use binterop::types::primitives::INTEGER_PRIMITIVE_NAMES;
 use binterop::types::r#enum::EnumType;
 use binterop::types::union::UnionType;
+use binterop::types::vector::VectorType;
 use binterop::types::{Type, TypeData};
 
 #[derive(Debug)]
@@ -42,7 +42,7 @@ impl Generator {
 
         if self.should_create_type {
             match self.currently_defining.as_ref().unwrap() {
-                Type::Primitive | Type::Array | Type::HeapArray | Type::Pointer => {}
+                Type::Primitive | Type::Array | Type::Vector | Type::Pointer => {}
                 Type::Data => {
                     self.current_index = self.schema.types.len();
                     self.schema.types.push(DataType::default_with_name(ident))
@@ -60,7 +60,7 @@ impl Generator {
             self.should_create_type = false;
         } else {
             match self.currently_defining.as_ref().unwrap() {
-                Type::Primitive | Type::Array | Type::HeapArray | Type::Pointer => {}
+                Type::Primitive | Type::Array | Type::Vector | Type::Pointer => {}
                 Type::Data => self.schema.types[self.current_index]
                     .fields
                     .push(Field::default_with_name(ident)),
@@ -143,14 +143,14 @@ impl Generator {
             .fields
             .last_mut()
             .unwrap();
-        new_field.r#type = Type::HeapArray;
-        new_field.type_index = self.schema.heap_arrays.len();
+        new_field.r#type = Type::Vector;
+        new_field.type_index = self.schema.vectors.len();
         new_field.offset = self.current_offset;
 
-        let heap_array_type = HeapArrayType::new(r#type, index);
-        self.schema.heap_arrays.push(heap_array_type);
+        let heap_array_type = VectorType::new(r#type, index);
+        self.schema.vectors.push(heap_array_type);
 
-        Ok(HeapArrayType::size())
+        Ok(VectorType::size())
     }
 
     fn process_field(&mut self, name: &str) -> Result<usize, String> {
@@ -179,26 +179,17 @@ impl Generator {
             return Err(format!("{name:?} cannot represent enum state since it was not found in integer primitive list!\n\tAvailable integer primitives: {INTEGER_PRIMITIVE_NAMES:?}"));
         }
 
-        match self.currently_defining {
-            Some(Type::Enum) => {}
-            Some(Type::Union) => {
-                self.schema.unions[self.current_index].repr_type_index =
-                    self.schema.type_data_by_name(name)?.index;
-            }
-            _ => {
-                let size = if name.ends_with('*') {
-                    self.process_pointer(name)?
-                } else if name.starts_with('[') && name.ends_with(']') {
-                    self.process_array(name)?
-                } else if name.starts_with('<') && name.ends_with('>') {
-                    self.process_heap_array(name)?
-                } else {
-                    self.process_field(name)?
-                };
+        let size = if name.ends_with('*') {
+            self.process_pointer(name)?
+        } else if name.starts_with('[') && name.ends_with(']') {
+            self.process_array(name)?
+        } else if name.starts_with('<') && name.ends_with('>') {
+            self.process_heap_array(name)?
+        } else {
+            self.process_field(name)?
+        };
 
-                self.current_offset += size;
-            }
-        }
+        self.current_offset += size;
 
         Ok(())
     }

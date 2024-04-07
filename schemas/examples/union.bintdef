@@ -1,7 +1,7 @@
 include enum.bintdef
 include struct.bintdef
 
-union SomeUnion u8 {
+union SomeUnion {
     Color,
     SomeStruct,
 }
