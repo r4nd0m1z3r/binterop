@@ -24,4 +24,10 @@ impl ArrayType {
 
         inner_type_size * self.len
     }
+
+    pub fn align(&self, schema: &Schema) -> usize {
+        schema
+            .type_align(self.inner_type, self.inner_type_index)
+            .expect("Provided schema does not contain inner type!")
+    }
 }

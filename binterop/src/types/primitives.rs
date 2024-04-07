@@ -1,10 +1,12 @@
 use serde::{Deserialize, Serialize};
+use std::mem::{align_of, size_of};
 use std::ops::Index;
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct PrimitiveType {
     pub name: &'static str,
     pub size: usize,
+    pub align: usize,
 }
 
 pub struct Primitives(phf::OrderedMap<&'static str, PrimitiveType>);
@@ -13,47 +15,58 @@ impl Primitives {
         let map = phf::phf_ordered_map! {
             "bool" => PrimitiveType {
                 name: "bool",
-                size: 1,
+                size: size_of::<bool>(),
+                align: align_of::<bool>()
             },
             "i8" => PrimitiveType {
                 name: "i8",
-                size: 1,
+                size: size_of::<i8>(),
+                align: align_of::<i8>()
             },
             "u8" => PrimitiveType {
                 name: "u8",
-                size: 1,
+                size: size_of::<u8>(),
+                align: align_of::<u8>()
             },
             "i16" => PrimitiveType {
                 name: "i16",
-                size: 2,
+                size: size_of::<i16>(),
+                align: align_of::<i16>()
             },
             "u16" => PrimitiveType {
                 name: "u16",
-                size: 2,
+                size: size_of::<u16>(),
+                align: align_of::<u16>()
             },
             "i32" => PrimitiveType {
                 name: "i32",
-                size: 4,
+                size: size_of::<i32>(),
+                align: align_of::<i32>()
             },
             "u32" => PrimitiveType {
                 name: "u32",
-                size: 4,
+                size: size_of::<u32>(),
+                align: align_of::<u32>()
             },
             "i64" => PrimitiveType {
                 name: "i64",
-                size: 8,
+                size: size_of::<i64>(),
+                align: align_of::<i64>()
             },
             "u64" => PrimitiveType {
                 name: "u64",
-                size: 8,
+                size: size_of::<u64>(),
+                align: align_of::<u64>()
             },
             "f32" => PrimitiveType {
                 name: "f32",
-                size: 4,
+                size: size_of::<f32>(),
+                align: align_of::<f32>()
             },
             "f64" => PrimitiveType {
                 name: "f64",
-                size: 8,
+                size: size_of::<f64>(),
+                align: align_of::<f64>()
             }
         };
 

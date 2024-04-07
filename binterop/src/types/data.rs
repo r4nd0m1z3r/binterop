@@ -72,4 +72,12 @@ impl DataType {
             .map(|field| field.size(schema) + field.padding_size)
             .sum()
     }
+
+    pub fn align(&self, schema: &Schema) -> usize {
+        self.fields
+            .iter()
+            .map(|field| field.align(schema))
+            .max()
+            .unwrap_or(1)
+    }
 }

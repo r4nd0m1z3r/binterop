@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::mem::size_of;
+use std::mem::{align_of, size_of};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct EnumType {
@@ -31,5 +31,9 @@ impl EnumType {
 
     pub fn size() -> usize {
         size_of::<i32>()
+    }
+
+    pub fn align() -> usize {
+        align_of::<i32>()
     }
 }

@@ -53,8 +53,12 @@ fn add_padding(schema: &mut Schema) {
     );
 
     for data_type in &schema.types {
-        let mut offset = 0;
-        for field in &data_type.fields {}
+        let mut layout = Layout::from_size_align(0, 1).unwrap();
+        for field_layout in data_type.fields.iter().map(|field| field.layout(schema)) {
+            let (new_layout, offset) = layout.extend(field_layout).unwrap();
+            layout = new_layout;
+            aligned_offsets.push(offset);
+        }
     }
 
     for (field, offset) in schema

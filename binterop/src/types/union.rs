@@ -2,6 +2,7 @@ use crate::schema::Schema;
 use crate::types::primitives::PRIMITIVES;
 use crate::types::Type;
 use serde::{Deserialize, Serialize};
+use std::cmp::max;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct UnionType {
@@ -52,5 +53,21 @@ impl UnionType {
             .unwrap();
 
         repr_type_size + max_possible_type_size
+    }
+
+    pub fn align(&self, schema: &Schema) -> usize {
+        let repr_type_align = PRIMITIVES.index(self.repr_type_index).unwrap().align;
+        let max_possible_type_align = self
+            .possible_types
+            .iter()
+            .map(|(index, r#type)| {
+                schema.type_align(*r#type, *index).unwrap_or_else(|| {
+                    panic!("Provided schema does not contain type {type:?} with index {index}!")
+                })
+            })
+            .max()
+            .unwrap();
+
+        max(repr_type_align, max_possible_type_align)
     }
 }

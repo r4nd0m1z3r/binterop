@@ -1,6 +1,7 @@
 use crate::schema::Schema;
 use crate::types::Type;
 use serde::{Deserialize, Serialize};
+use std::alloc::Layout;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Field {
@@ -41,5 +42,15 @@ impl Field {
         schema
             .type_size(self.r#type, self.type_index)
             .expect("Provided schema does not contain this type!")
+    }
+
+    pub fn align(&self, schema: &Schema) -> usize {
+        schema
+            .type_align(self.r#type, self.type_index)
+            .expect("Provided schema does not contain this type!")
+    }
+
+    pub fn layout(&self, schema: &Schema) -> Layout {
+        Layout::from_size_align(self.size(schema), self.align(schema)).unwrap()
     }
 }

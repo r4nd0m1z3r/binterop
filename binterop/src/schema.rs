@@ -7,7 +7,9 @@ use crate::types::r#enum::EnumType;
 use crate::types::union::UnionType;
 use crate::types::{Type, TypeData};
 use serde::{Deserialize, Serialize};
+use std::alloc::Layout;
 use std::borrow::Cow;
+use std::mem::{align_of, size_of};
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Schema {
@@ -92,6 +94,28 @@ impl Schema {
                 .map(|array_type| array_type.size(self)),
             Type::HeapArray => Some(HeapArrayType::size()),
             Type::Pointer => Some(PointerType::size()),
+        }
+    }
+
+    pub fn type_align(&self, r#type: Type, index: usize) -> Option<usize> {
+        match r#type {
+            Type::Primitive => PRIMITIVES.index(index).map(|primitive| primitive.align),
+            Type::Data => self.types.get(index).map(|data_type| data_type.align(self)),
+            Type::Enum => Some(EnumType::align()),
+            Type::Union => self
+                .unions
+                .get(index)
+                .map(|union_type| union_type.align(self)),
+            Type::Array => self
+                .arrays
+                .get(index)
+                .map(|array_type| array_type.align(self)),
+            Type::HeapArray => Some(
+                Layout::from_size_align(size_of::<u64>() * 3, size_of::<u64>())
+                    .unwrap()
+                    .align(),
+            ),
+            Type::Pointer => Some(align_of::<u64>()),
         }
     }
 
