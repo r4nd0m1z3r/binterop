@@ -153,7 +153,7 @@ impl RustGenerator {
             let field_name = type_name.to_snake();
 
             union_fields_text.push_str(&format!(
-                "\t{field_name}: std::mem::ManuallyDrop<{type_name}>,\n"
+                "\tpub {field_name}: std::mem::ManuallyDrop<{type_name}>,\n"
             ));
         }
 
@@ -170,9 +170,9 @@ impl RustGenerator {
         self.output.push_str(&format!(
             "
         #[repr(C)]
-        struct {union_type_name} {{
-            variant: {union_type_name}Variant,
-            data: {union_type_name}Union
+        pub struct {union_type_name} {{
+            pub variant: {union_type_name}Variant,
+            pub data: {union_type_name}Union
         }}
         ",
         ));

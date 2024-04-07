@@ -40,12 +40,12 @@ pub enum SomeUnionVariant {
 
 #[repr(C)]
 pub union SomeUnionUnion {
-    color: std::mem::ManuallyDrop<Color>,
-    some_struct: std::mem::ManuallyDrop<SomeStruct>,
+    pub color: std::mem::ManuallyDrop<Color>,
+    pub some_struct: std::mem::ManuallyDrop<SomeStruct>,
 }
 
 #[repr(C)]
-struct SomeUnion {
-    variant: SomeUnionVariant,
-    data: SomeUnionUnion,
+pub struct SomeUnion {
+    pub variant: SomeUnionVariant,
+    pub data: SomeUnionUnion,
 }
