@@ -7,6 +7,11 @@ typedef struct {
 } SomeOtherType;
 
 typedef struct {
+	uint32_t b;
+	uint8_t a[69];
+} Test;
+
+typedef struct {
 	SomeOtherType* ptr;
 	uint64_t len;
 } ArraySomeOtherType;

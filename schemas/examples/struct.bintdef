@@ -2,6 +2,11 @@ struct SomeOtherType {
     a: f64
 }
 
+struct Test {
+    a: [u8:69],
+    b: u32
+}
+
 struct SomeStruct {
     some_uint: u16,
     some_int: i64,
