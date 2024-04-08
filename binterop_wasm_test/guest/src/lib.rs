@@ -11,7 +11,7 @@ mod main;
 
 #[no_mangle]
 pub fn alloc(len: usize) -> *mut u8 {
-    let mut buf = Box::<[u8]>::new_uninit_slice(len);
+    let mut buf = Box::<[u8]>::new_zeroed_slice(len);
     let ptr = buf.as_mut_ptr();
 
     mem::forget(buf);
