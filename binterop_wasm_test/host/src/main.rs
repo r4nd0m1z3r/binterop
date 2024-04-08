@@ -61,11 +61,11 @@ fn main() {
         result.msg.ptr = memory.data_ptr(&store).add(result.msg.ptr as usize);
     }
 
-    dealloc.call(&mut store, input_ptr as u32).unwrap();
-    dealloc.call(&mut store, result_ptr as u32).unwrap();
-
     println!(
         "Got data from guest: (msg: {:?})",
         String::from_utf8_lossy(result.msg.as_slice())
     );
+
+    dealloc.call(&mut store, input_ptr as u32).unwrap();
+    dealloc.call(&mut store, result_ptr as u32).unwrap();
 }
