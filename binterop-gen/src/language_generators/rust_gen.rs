@@ -213,18 +213,20 @@ impl RustGenerator {
                     let mut vec = unsafe { Vec::from_raw_parts(self.ptr, self.len as usize, self.capacity as usize) };
                     vec.push(elem);
 
-                    self.ptr = vec.as_mut_ptr();
-                    self.len = vec.len() as u64;
-                    self.capacity = vec.capacity() as u64;                                    
+                    let (ptr, len, capacity) = vec.into_raw_parts();
+                    self.ptr = ptr;
+                    self.len = len as u64;
+                    self.capacity = capacity as u64;                                    
                 }
 
                 pub fn pop(&mut self) -> Option<T> {
                     let mut vec = unsafe { Vec::from_raw_parts(self.ptr, self.len as usize, self.capacity as usize) };
                     let elem = vec.pop();
 
-                    self.ptr = vec.as_mut_ptr();
-                    self.len = vec.len() as u64;
-                    self.capacity = vec.capacity() as u64;    
+                    let (ptr, len, capacity) = vec.into_raw_parts();
+                    self.ptr = ptr;
+                    self.len = len as u64;
+                    self.capacity = capacity as u64;    
 
                     elem
                 }
@@ -260,23 +262,13 @@ impl LanguageGenerator for RustGenerator {
         fs::write(&helpers_path, &self.helpers_output)
             .map_err(|err| format!("Failed to write helpers file! Error: {err}"))?;
 
-        match std::process::Command::new("rustfmt")
+        if let Err(err) = std::process::Command::new("rustfmt")
             .current_dir(file_path.parent().unwrap())
             .arg(generated_file_path)
             .arg(helpers_path)
             .spawn()
         {
-            Ok(mut child) => {
-                if let Err(err) = child
-                    .wait()
-                    .map_err(|err| format!("\tFailed to format output files! Err: {err:?}"))
-                {
-                    println!("\tFailed to format output files! Err: {err:?}");
-                }
-            }
-            Err(err) => {
-                println!("\tFailed to format output files! Err: {err:?}");
-            }
+            println!("\tFailed to format output files! Err: {err:?}");
         }
 
         Ok(())

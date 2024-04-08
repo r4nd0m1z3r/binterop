@@ -1,0 +1,9 @@
+struct HostToGuest {
+    a: u8,
+    b: f64,
+    c: f64
+}
+
+struct GuestToHost {
+    msg: <u8>
+}

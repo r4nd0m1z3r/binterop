@@ -1,0 +1,8 @@
+[package]
+name = "host"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+wasi-common = "19.0.1"
+wasmtime = "19.0.1"
