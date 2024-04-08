@@ -2,17 +2,20 @@
 #[path = "helpers.rs"]
 pub mod helpers;
 #[repr(C)]
+#[derive(Copy, Clone, Debug)]
 pub struct SomeOtherType {
     pub a: f64,
 }
 
 #[repr(C)]
+#[derive(Copy, Clone, Debug)]
 pub struct Test {
     pub b: u32,
     pub a: [u8; 69],
 }
 
 #[repr(C)]
+#[derive(Copy, Clone, Debug)]
 pub struct SomeStruct {
     pub some_bool: bool,
     pub some_uint: u16,
@@ -26,6 +29,7 @@ pub struct SomeStruct {
 }
 
 #[repr(C)]
+#[derive(Copy, Clone, Debug)]
 pub enum Color {
     Red,
     Green,
@@ -33,6 +37,7 @@ pub enum Color {
 }
 
 #[repr(C)]
+#[derive(Copy, Clone, Debug)]
 pub enum SomeUnionVariant {
     Color,
     SomeStruct,
@@ -45,6 +50,7 @@ pub union SomeUnionUnion {
 }
 
 #[repr(C)]
+#[derive(Copy, Clone, Debug)]
 pub struct SomeUnion {
     pub variant: SomeUnionVariant,
     pub data: SomeUnionUnion,
