@@ -61,10 +61,10 @@ impl CGenerator {
         match r#type {
             Type::Primitive | Type::Array | Type::Pointer => Ok(()),
             Type::Vector => {
-                let heap_array_type = schema.vectors.get(type_index).ok_or(format!(
+                let vector_type = schema.vectors.get(type_index).ok_or(format!(
                     "{referer_name} references vector type which is not present in schema!"
                 ))?;
-                self.generate_heap_array_type(schema, heap_array_type)
+                self.generate_heap_array_type(schema, vector_type)
             }
             Type::Data => {
                 let data_type = schema.types.get(type_index).ok_or(format!(
@@ -96,15 +96,12 @@ impl CGenerator {
         schema: &Schema,
         heap_array_type: &VectorType,
     ) -> Result<(), String> {
-        let heap_array_data_type_name = format!(
-            "Array{}",
+        let vector_data_type_name = format!(
+            "Vector{}",
             schema.type_name(heap_array_type.inner_type, heap_array_type.inner_type_index)
         );
 
-        if self
-            .generated_type_names
-            .contains(&heap_array_data_type_name)
-        {
+        if self.generated_type_names.contains(&vector_data_type_name) {
             return Ok(());
         }
 
@@ -127,7 +124,7 @@ impl CGenerator {
 
         let data_type = DataType::new(
             schema,
-            &heap_array_data_type_name,
+            &vector_data_type_name,
             &[pointer_field_data, len_field_data, capacity_field_data],
         );
         self.generate_data_type(schema, &data_type)
@@ -249,13 +246,13 @@ impl CGenerator {
     fn generate_helpers(&mut self, schema: &Schema) {
         let mut generated_type_names = HashSet::new();
 
-        for heap_array_type in &schema.vectors {
+        for vector_type in &schema.vectors {
             let inner_type_name =
-                schema.type_name(heap_array_type.inner_type, heap_array_type.inner_type_index);
+                schema.type_name(vector_type.inner_type, vector_type.inner_type_index);
             let c_inner_type_name =
                 Self::binterop_primitive_name_to_c_primitive_name(&inner_type_name)
                     .unwrap_or(inner_type_name.to_string());
-            let type_name = format!("Array{inner_type_name}");
+            let type_name = format!("Vector{inner_type_name}");
 
             if generated_type_names.contains(&type_name) {
                 continue;
