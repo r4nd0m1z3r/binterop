@@ -19,7 +19,8 @@ fn main() {
     let wasi = WasiCtxBuilder::new().inherit_stdio().build();
     let mut store = Store::new(&engine, wasi);
 
-    let module = Module::from_file(&engine, "target/wasm32-wasip1/debug/guest.wasm").unwrap();
+    let module_path = "binterop_wasm_test/guest/src/guest.wasm";
+    let module = Module::from_file(&engine, module_path).unwrap();
     let instance = linker.instantiate(&mut store, &module).unwrap();
     let memory = instance.get_memory(&mut store, "memory").unwrap();
     let memory_ptr = memory.data_ptr(&store);
@@ -63,7 +64,7 @@ fn main() {
 
     println!(
         "Got data from guest: (msg: {:?})",
-        String::from_utf8_lossy(result.msg.as_slice())
+        String::from_utf8_lossy(result.msg.as_slice()).trim_end_matches('\0')
     );
 
     dealloc.call(&mut store, input_ptr as u32).unwrap();
