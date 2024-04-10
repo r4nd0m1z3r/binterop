@@ -28,6 +28,7 @@ process_data(HostToGuest* host_to_guest_ptr)
     Vectoru8 msg = Vectoru8_new(128);
     sprintf((char*)msg.ptr, "Char: %c | %f + %f = %f", host_to_guest.a,
         host_to_guest.b, host_to_guest.c, host_to_guest.b + host_to_guest.c);
+    msg.len = strlen((char*)msg.ptr);
 
     GuestToHost* output = (GuestToHost*)alloc(sizeof(GuestToHost));
     memcpy(output, &(GuestToHost) { msg }, sizeof(GuestToHost));

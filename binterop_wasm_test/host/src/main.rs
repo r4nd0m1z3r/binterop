@@ -64,7 +64,7 @@ fn main() {
 
     println!(
         "Got data from guest: (msg: {:?})",
-        String::from_utf8_lossy(result.msg.as_slice()).trim_end_matches('\0')
+        String::from_utf8_lossy(result.msg.as_slice())
     );
 
     dealloc.call(&mut store, input_ptr as u32).unwrap();
