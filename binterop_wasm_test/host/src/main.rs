@@ -59,7 +59,7 @@ fn main() {
     let result_ptr = process_data.call(&mut store, input_ptr as u32).unwrap() as usize;
     let mut result = unsafe { memory_ptr.add(result_ptr).cast::<GuestToHost>().read() };
     unsafe {
-        result.msg.ptr = memory.data_ptr(&store).add(result.msg.ptr as usize);
+        result.msg.ptr = memory_ptr.add(result.msg.ptr as usize);
     }
 
     println!(
