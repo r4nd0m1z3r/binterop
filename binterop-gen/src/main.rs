@@ -1,3 +1,5 @@
+#![feature(vec_into_raw_parts)]
+
 mod generator;
 mod language_generators;
 mod optimization;
