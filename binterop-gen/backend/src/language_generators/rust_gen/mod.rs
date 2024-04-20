@@ -1,5 +1,3 @@
-mod rust_helpers;
-
 use crate::language_generators::LanguageGenerator;
 use binterop::schema::Schema;
 use binterop::types::data::DataType;
@@ -13,8 +11,8 @@ use std::path::Path;
 
 pub struct RustGenerator {
     generated_type_names: HashSet<String>,
-    output: String,
-    helpers_output: String,
+    pub output: String,
+    pub helpers_output: String,
 }
 impl Default for RustGenerator {
     fn default() -> Self {

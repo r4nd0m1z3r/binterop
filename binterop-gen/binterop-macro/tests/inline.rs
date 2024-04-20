@@ -1,3 +1,5 @@
+#![feature(vec_into_raw_parts)]
+
 use binterop_macro::binterop_inline;
 
 #[test]
@@ -25,4 +27,20 @@ fn inline() {
         some_other_type_vector: <SomeOtherType>,
     }
     }
+
+    let some_other_type = SomeOtherType { a: 13.37 };
+    let test = Test {
+        a: [128; 69],
+        b: 1337,
+    };
+
+    binterop_inline! {
+        "test",
+        struct TestAB {
+            a: u32,
+            b: u32,
+        }
+    }
+
+    dbg!(some_other_type, test);
 }

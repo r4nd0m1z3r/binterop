@@ -26,6 +26,10 @@ pub fn generate_schema(
     Ok(schema)
 }
 
+pub fn serialize_schema(schema: &Schema) -> Result<String, serde_json::Error> {
+    serde_json::to_string(&schema)
+}
+
 pub fn generate_lang_files(path: &Path, gen_name: &str, schema: &Schema) -> Result<(), String> {
     match gen_name {
         "c" => {
@@ -53,7 +57,7 @@ pub fn language_generator(path: &Path, gen_name: &str, schema: &Schema) -> Resul
 
 pub fn process_text(path: &Path, text: &str, args: &[String]) -> Result<(), String> {
     let schema = generate_schema(Some(path.into()), text, SchemaOptimizations::default())?;
-    let schema_serialized = serde_json::to_string(&schema);
+    let schema_serialized = serialize_schema(&schema);
 
     match schema_serialized {
         Ok(data) => {
