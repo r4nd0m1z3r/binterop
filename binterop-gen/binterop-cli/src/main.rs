@@ -3,21 +3,16 @@ use std::path::PathBuf;
 use std::{env, fs};
 
 fn main() {
-    if env::args()
+    let args = env::args()
         .skip(1)
         .filter(|arg| !arg.starts_with("--"))
-        .count()
-        == 0
-    {
+        .collect::<Vec<_>>();
+    if args.is_empty() {
         eprintln!("No arguments were provided!");
         return;
     }
 
-    for path in env::args()
-        .skip(1)
-        .filter(|arg| !arg.starts_with("--"))
-        .map(PathBuf::from)
-    {
+    for path in args.iter().map(PathBuf::from) {
         println!("{path:?}");
         let path = match fs::canonicalize(path) {
             Ok(path) => path,
