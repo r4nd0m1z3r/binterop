@@ -1,6 +1,11 @@
 [workspace]
 members = [
-    "binterop", "binterop-gen/backend", "binterop-gen/binterop-cli", "binterop-wasm-test/host", "binterop-wasm-test/guest"
+    "binterop",
+    "binterop-gen/backend",
+    "binterop-gen/binterop-cli",
+    "binterop-wasm-test/host",
+    "binterop-wasm-test/guest",
+    "binterop-gen/binterop-macro",
 ]
 exclude = []
 resolver = "2"

@@ -2,4 +2,5 @@ target
 .idea
 binterop-gen/.gitignore
 binterop/.gitignore
+binterop_generated/
 *.lock

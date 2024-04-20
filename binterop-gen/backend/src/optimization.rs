@@ -7,13 +7,21 @@ pub struct SchemaOptimizations {
     pub data_type_layout: bool,
     pub add_padding: bool,
 }
-impl SchemaOptimizations {
-    pub fn new() -> Self {
+impl Default for SchemaOptimizations {
+    fn default() -> Self {
         let args = env::args().collect::<Vec<_>>();
 
         Self {
             data_type_layout: !args.contains(&"--dont-optimize-layout".to_string()),
             add_padding: !args.contains(&"--dont-add-padding".to_string()),
+        }
+    }
+}
+impl SchemaOptimizations {
+    pub fn new(data_type_layout: bool, add_padding: bool) -> Self {
+        Self {
+            data_type_layout,
+            add_padding,
         }
     }
 }

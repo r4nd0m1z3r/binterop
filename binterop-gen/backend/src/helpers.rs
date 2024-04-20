@@ -52,7 +52,7 @@ pub fn language_generator(path: &Path, gen_name: &str, schema: &Schema) -> Resul
 }
 
 pub fn process_text(path: &Path, text: &str) -> Result<(), String> {
-    let schema = generate_schema(Some(path.into()), text, SchemaOptimizations::new())?;
+    let schema = generate_schema(Some(path.into()), text, SchemaOptimizations::default())?;
     let schema_serialized = serde_json::to_string(&schema);
 
     match schema_serialized {
