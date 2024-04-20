@@ -2,6 +2,7 @@
 
 use backend::helpers::process_text;
 use proc_macro::{TokenStream, TokenTree};
+use std::env::Args;
 use std::fs;
 use std::panic::{set_hook, PanicInfo};
 
@@ -40,6 +41,7 @@ pub fn binterop_inline(token_stream: TokenStream) -> TokenStream {
     process_text(
         format!("binterop_generated/{}", name.trim_matches('"')).as_ref(),
         &schema_text,
+        &["--gen=rust".to_string()],
     )
     .unwrap();
 

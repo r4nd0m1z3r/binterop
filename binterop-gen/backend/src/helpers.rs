@@ -5,8 +5,8 @@ use crate::language_generators::LanguageGenerator;
 use crate::optimization::{optimize_schema, SchemaOptimizations};
 use crate::tokenizer::Tokenizer;
 use binterop::schema::Schema;
+use std::fs;
 use std::path::{Path, PathBuf};
-use std::{env, fs};
 
 pub fn generate_schema(
     file_path: Option<PathBuf>,
@@ -51,7 +51,7 @@ pub fn language_generator(path: &Path, gen_name: &str, schema: &Schema) -> Resul
         .map_err(|err| format!("Failed to generate language files! Error: {err}"))
 }
 
-pub fn process_text(path: &Path, text: &str) -> Result<(), String> {
+pub fn process_text(path: &Path, text: &str, args: &[String]) -> Result<(), String> {
     let schema = generate_schema(Some(path.into()), text, SchemaOptimizations::default())?;
     let schema_serialized = serde_json::to_string(&schema);
 
@@ -68,7 +68,8 @@ pub fn process_text(path: &Path, text: &str) -> Result<(), String> {
         ))?,
     }
 
-    if let Some(gen_name) = env::args()
+    if let Some(gen_name) = args
+        .iter()
         .filter_map(|arg| arg.strip_prefix("--gen=").map(ToString::to_string))
         .next()
     {

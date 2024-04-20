@@ -14,6 +14,15 @@ fn main() {
     }
 
     for path in args.iter().map(PathBuf::from) {
+        if path
+            .as_os_str()
+            .to_str()
+            .map(|path_str| path_str.starts_with("--"))
+            .unwrap_or_default()
+        {
+            continue;
+        }
+
         println!("{path:?}");
         let path = match fs::canonicalize(path) {
             Ok(path) => path,
@@ -26,8 +35,7 @@ fn main() {
 
         match fs::read_to_string(&path) {
             Ok(file_text) => {
-                if process_text(&path, &file_text).is_ok() {
-                } else if let Err(err) = process_text(&path, &file_text) {
+                if let Err(err) = process_text(&path, &file_text, &args) {
                     eprintln!("\t{err}")
                 }
             }
