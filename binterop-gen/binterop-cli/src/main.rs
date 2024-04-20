@@ -7,7 +7,7 @@ fn main() {
         .skip(1)
         .filter(|arg| !arg.starts_with("--"))
         .collect::<Vec<_>>();
-    
+
     if args.is_empty() {
         eprintln!("No arguments were provided!");
         return;
@@ -25,14 +25,12 @@ fn main() {
         println!("{path:?}");
 
         match fs::read_to_string(&path) {
-            Ok(file_text) => match process_text(&path, &file_text) {
-                Ok(status) => {
-                    for line in status {
-                        eprintln!("\t{line}")
-                    }
+            Ok(file_text) => {
+                if process_text(&path, &file_text).is_ok() {
+                } else if let Err(err) = process_text(&path, &file_text) {
+                    eprintln!("\t{err}")
                 }
-                Err(err) => eprintln!("\t{err}"),
-            },
+            }
             Err(err) => eprintln!("{err:?}"),
         }
 
