@@ -7,6 +7,7 @@ fn main() {
         .skip(1)
         .filter(|arg| !arg.starts_with("--"))
         .collect::<Vec<_>>();
+    
     if args.is_empty() {
         eprintln!("No arguments were provided!");
         return;
