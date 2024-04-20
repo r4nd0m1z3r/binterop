@@ -1,10 +1,3 @@
-#![feature(vec_into_raw_parts)]
-
-mod generator;
-mod language_generators;
-mod optimization;
-mod tokenizer;
-
 use crate::generator::Generator;
 use crate::language_generators::c_gen::CGenerator;
 use crate::language_generators::rust_gen::RustGenerator;
@@ -15,7 +8,7 @@ use binterop::schema::Schema;
 use std::path::{Path, PathBuf};
 use std::{env, fs};
 
-fn generate_schema(
+pub fn generate_schema(
     file_path: Option<PathBuf>,
     definition_text: &str,
     optimizations: SchemaOptimizations,
@@ -33,7 +26,7 @@ fn generate_schema(
     Ok(schema)
 }
 
-fn generate_lang_files(path: &Path, gen_name: &str, schema: &Schema) -> Result<(), String> {
+pub fn generate_lang_files(path: &Path, gen_name: &str, schema: &Schema) -> Result<(), String> {
     match gen_name {
         "c" => {
             let mut generator = CGenerator::default();
@@ -53,12 +46,12 @@ fn generate_lang_files(path: &Path, gen_name: &str, schema: &Schema) -> Result<(
     }
 }
 
-fn language_generator(path: &Path, gen_name: &str, schema: &Schema) -> Result<(), String> {
+pub fn language_generator(path: &Path, gen_name: &str, schema: &Schema) -> Result<(), String> {
     generate_lang_files(path, gen_name, schema)
         .map_err(|err| format!("Failed to generate language files! Error: {err}"))
 }
 
-fn process_text(path: &Path, text: &str) -> Result<Vec<String>, String> {
+pub fn process_text(path: &Path, text: &str) -> Result<Vec<String>, String> {
     let mut status = vec![];
 
     let schema = generate_schema(Some(path.into()), text, SchemaOptimizations::new())?;
@@ -88,28 +81,4 @@ fn process_text(path: &Path, text: &str) -> Result<Vec<String>, String> {
     }
 
     Ok(status)
-}
-
-fn main() {
-    for path in env::args()
-        .skip(1)
-        .map(PathBuf::from)
-        .flat_map(fs::canonicalize)
-    {
-        println!("{path:?}");
-
-        match fs::read_to_string(&path) {
-            Ok(file_text) => match process_text(&path, &file_text) {
-                Ok(status) => {
-                    for line in status {
-                        eprintln!("\t{line}")
-                    }
-                }
-                Err(err) => eprintln!("\t{err}"),
-            },
-            Err(err) => eprintln!("{err:?}"),
-        }
-
-        println!()
-    }
 }

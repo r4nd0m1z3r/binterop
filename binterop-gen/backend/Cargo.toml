@@ -1,10 +1,10 @@
 [package]
-name = "binterop-gen"
+name = "backend"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-binterop = { path = "../binterop" }
+binterop = { path = "../../binterop" }
 case = "1.0.0"
 permutation = "0.4.1"
 serde_json = "1.0.113"

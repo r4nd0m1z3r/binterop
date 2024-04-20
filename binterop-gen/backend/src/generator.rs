@@ -194,7 +194,7 @@ impl Generator {
         Ok(())
     }
 
-    pub(crate) fn feed(&mut self, token: Token) -> Result<(), String> {
+    pub fn feed(&mut self, token: Token) -> Result<(), String> {
         match token {
             Token::Ident(ident) => {
                 if self.next_is_repr_type {
@@ -242,7 +242,7 @@ impl Generator {
         Ok(())
     }
 
-    pub(crate) fn output(&mut self) -> Schema {
+    pub fn output(&mut self) -> Schema {
         self.schema.clone()
     }
 }
