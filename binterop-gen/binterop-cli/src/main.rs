@@ -3,10 +3,7 @@ use std::path::PathBuf;
 use std::{env, fs};
 
 fn main() {
-    let args = env::args()
-        .skip(1)
-        .filter(|arg| !arg.starts_with("--"))
-        .collect::<Vec<_>>();
+    let args = env::args().skip(1).collect::<Vec<_>>();
 
     if args.is_empty() {
         eprintln!("No arguments were provided!");
