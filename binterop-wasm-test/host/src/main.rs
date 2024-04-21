@@ -19,7 +19,7 @@ fn main() {
     let wasi = WasiCtxBuilder::new().inherit_stdio().build();
     let mut store = Store::new(&engine, wasi);
 
-    let module_path = "binterop_wasm_test/guest/src/guest.wasm";
+    let module_path = "binterop-wasm-test/guest/src/guest.wasm";
     let module = Module::from_file(&engine, module_path).unwrap();
     let instance = linker.instantiate(&mut store, &module).unwrap();
     let memory = instance.get_memory(&mut store, "memory").unwrap();
