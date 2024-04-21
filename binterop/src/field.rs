@@ -1,7 +1,7 @@
 use crate::schema::Schema;
 use crate::types::Type;
 use serde::{Deserialize, Serialize};
-use std::alloc::Layout;
+use std::{alloc::Layout, borrow::Cow};
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Field {
@@ -58,5 +58,9 @@ impl Field {
         schema
             .is_copy(self.r#type, self.type_index)
             .expect("Provided schema does not contain this type!")
+    }
+
+    pub fn type_name<'a>(&self, schema: &'a Schema) -> Cow<'a, str> {
+        schema.type_name(self.r#type, self.type_index)
     }
 }
