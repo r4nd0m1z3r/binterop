@@ -111,6 +111,7 @@ impl Generator {
             index,
             r#type,
             size: inner_type_size,
+            ..
         } = self.schema.type_data_by_name(&name[1..separator_index])?;
 
         let array_len = name[separator_index + 1..name.len() - 1]
@@ -132,7 +133,7 @@ impl Generator {
         Ok(inner_type_size)
     }
 
-    fn process_heap_array(&mut self, name: &str) -> Result<usize, String> {
+    fn process_vector(&mut self, name: &str) -> Result<usize, String> {
         let TypeData { index, r#type, .. } =
             self.schema.type_data_by_name(&name[1..name.len() - 1])?;
 
@@ -147,8 +148,8 @@ impl Generator {
         new_field.type_index = self.schema.vectors.len();
         new_field.offset = self.current_offset;
 
-        let heap_array_type = VectorType::new(r#type, index);
-        self.schema.vectors.push(heap_array_type);
+        let vector_type = VectorType::new(r#type, index);
+        self.schema.vectors.push(vector_type);
 
         Ok(VectorType::size())
     }
@@ -158,6 +159,7 @@ impl Generator {
             index,
             r#type,
             size,
+            ..
         } = self.schema.type_data_by_name(name)?;
 
         let new_field = self.schema.types[self.current_index]
@@ -184,7 +186,7 @@ impl Generator {
         } else if name.starts_with('[') && name.ends_with(']') {
             self.process_array(name)?
         } else if name.starts_with('<') && name.ends_with('>') {
-            self.process_heap_array(name)?
+            self.process_vector(name)?
         } else {
             self.process_field(name)?
         };
