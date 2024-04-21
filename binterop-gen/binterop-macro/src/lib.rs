@@ -68,14 +68,12 @@ pub fn binterop_inline(token_stream: TokenStream) -> TokenStream {
     .unwrap();
 
     let mut generator = RustGenerator::default();
+    generator.output.clear();
 
     let helpers_path = file_path.with_file_name("helpers").with_extension("rs");
-    if helpers_path.try_exists().is_ok() {
-        generator.output.clear();
-    }
 
     generator.feed(&schema).unwrap();
 
-    fs::write(&helpers_path, &generator.helpers_output).unwrap();
+    fs::write(helpers_path, &generator.helpers_output).unwrap();
     generator.output.parse().unwrap()
 }

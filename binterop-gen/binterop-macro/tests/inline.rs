@@ -2,6 +2,8 @@
 
 use binterop_macro::binterop_inline;
 
+mod helpers;
+
 #[test]
 fn inline() {
     binterop_inline! {
@@ -42,5 +44,7 @@ fn inline() {
         }
     }
 
-    dbg!(some_other_type, test);
+    let test_ab = TestAB { a: 13, b: 37 };
+
+    dbg!(some_other_type, test, test_ab);
 }
