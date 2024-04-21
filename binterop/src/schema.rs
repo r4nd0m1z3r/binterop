@@ -97,6 +97,24 @@ impl Schema {
         }
     }
 
+    pub fn is_copy(&self, r#type: Type, index: usize) -> Option<bool> {
+        match r#type {
+            Type::Primitive => Some(true),
+            Type::Data => self
+                .types
+                .get(index)
+                .map(|data_type| data_type.is_copy(self)),
+            Type::Enum => Some(true),
+            Type::Union => self
+                .unions
+                .get(index)
+                .map(|union_type| union_type.is_copy(self)),
+            Type::Array => Some(true),
+            Type::Vector => Some(false),
+            Type::Pointer => Some(true),
+        }
+    }
+
     pub fn type_align(&self, r#type: Type, index: usize) -> Option<usize> {
         match r#type {
             Type::Primitive => PRIMITIVES.index(index).map(|primitive| primitive.align),
@@ -122,18 +140,18 @@ impl Schema {
     pub fn type_data_by_name(&self, name: &str) -> Result<TypeData, String> {
         if let Some(index) = PRIMITIVES.index_of(name) {
             let type_size = PRIMITIVES[name].size;
-            return Ok(TypeData::new(index, Type::Primitive, type_size));
+            return Ok(TypeData::new(index, Type::Primitive, type_size, true));
         }
 
-        if let Some(index) = self
+        if let Some((index, _)) = self
             .types
             .iter()
             .enumerate()
             .find(|(_, data_type)| data_type.name == name)
-            .map(|(index, _)| index)
         {
             let type_size = self.type_size(Type::Data, index).unwrap();
-            return Ok(TypeData::new(index, Type::Data, type_size));
+            let is_copy = self.is_copy(Type::Data, index).unwrap();
+            return Ok(TypeData::new(index, Type::Data, type_size, is_copy));
         }
 
         if let Some(index) = self
@@ -144,7 +162,7 @@ impl Schema {
             .map(|(index, _)| index)
         {
             let type_size = self.type_size(Type::Enum, index).unwrap();
-            return Ok(TypeData::new(index, Type::Enum, type_size));
+            return Ok(TypeData::new(index, Type::Enum, type_size, true));
         }
 
         if let Some(index) = self
@@ -155,7 +173,8 @@ impl Schema {
             .map(|(index, _)| index)
         {
             let type_size = self.type_size(Type::Union, index).unwrap();
-            return Ok(TypeData::new(index, Type::Union, type_size));
+            let is_copy = self.is_copy(Type::Union, index).unwrap();
+            return Ok(TypeData::new(index, Type::Union, type_size, is_copy));
         }
 
         let available_type_names = self

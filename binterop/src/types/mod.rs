@@ -12,13 +12,15 @@ pub struct TypeData {
     pub index: usize,
     pub r#type: Type,
     pub size: usize,
+    pub is_copy: bool,
 }
 impl TypeData {
-    pub fn new(index: usize, r#type: Type, size: usize) -> Self {
+    pub fn new(index: usize, r#type: Type, size: usize, is_copy: bool) -> Self {
         Self {
             index,
             r#type,
             size,
+            is_copy,
         }
     }
 }

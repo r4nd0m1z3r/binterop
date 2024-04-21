@@ -80,4 +80,8 @@ impl DataType {
             .max()
             .unwrap_or(1)
     }
+
+    pub fn is_copy(&self, schema: &Schema) -> bool {
+        self.fields.iter().all(|field| field.is_copy(schema))
+    }
 }

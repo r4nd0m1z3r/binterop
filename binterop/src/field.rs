@@ -53,4 +53,10 @@ impl Field {
     pub fn layout(&self, schema: &Schema) -> Layout {
         Layout::from_size_align(self.size(schema), self.align(schema)).unwrap()
     }
+
+    pub fn is_copy(&self, schema: &Schema) -> bool {
+        schema
+            .is_copy(self.r#type, self.type_index)
+            .expect("Provided schema does not contain this type!")
+    }
 }

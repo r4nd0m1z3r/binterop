@@ -36,8 +36,8 @@ impl UnionType {
         let max_possible_type_size = self
             .possible_types
             .iter()
-            .map(|(index, r#type)| {
-                schema.type_size(*r#type, *index).unwrap_or_else(|| {
+            .map(|&(index, r#type)| {
+                schema.type_size(r#type, index).unwrap_or_else(|| {
                     panic!("Provided schema does not contain type {type:?} with index {index}!")
                 })
             })
@@ -52,8 +52,8 @@ impl UnionType {
         let max_possible_type_align = self
             .possible_types
             .iter()
-            .map(|(index, r#type)| {
-                schema.type_align(*r#type, *index).unwrap_or_else(|| {
+            .map(|&(index, r#type)| {
+                schema.type_align(r#type, index).unwrap_or_else(|| {
                     panic!("Provided schema does not contain type {type:?} with index {index}!")
                 })
             })
@@ -61,5 +61,11 @@ impl UnionType {
             .unwrap();
 
         max(repr_type_align, max_possible_type_align)
+    }
+
+    pub fn is_copy(&self, schema: &Schema) -> bool {
+        self.possible_types
+            .iter()
+            .all(|&(index, r#type)| schema.is_copy(r#type, index).unwrap_or_default())
     }
 }

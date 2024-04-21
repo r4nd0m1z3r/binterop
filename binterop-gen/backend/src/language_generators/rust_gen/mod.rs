@@ -104,11 +104,16 @@ impl RustGenerator {
 
         self.output.push_str(&format!(
             "#[repr(C)]
-            #[derive(Copy, Clone, Debug)]
+            #[derive({}Clone, Debug)]
             pub struct {} 
             {{{fields_text}}}
             
             ",
+            if data_type.is_copy(schema) {
+                "Copy, "
+            } else {
+                ""
+            },
             data_type.name
         ));
 
@@ -172,12 +177,17 @@ impl RustGenerator {
         self.output.push_str(&format!(
             "
         #[repr(C)]
-        #[derive(Copy, Clone, Debug)]
+        #[derive({}Clone, Debug)]
         pub struct {union_type_name} {{
             pub variant: {union_type_name}Variant,
             pub data: {union_type_name}Union
         }}
         ",
+            if union_type.is_copy(schema) {
+                "Copy, "
+            } else {
+                ""
+            }
         ));
 
         Ok(())
