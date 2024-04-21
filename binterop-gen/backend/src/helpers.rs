@@ -48,11 +48,7 @@ pub fn generate_lang_files(path: &Path, gen_name: &str, schema: &Schema) -> Resu
         }
         _ => Err(format!("Unknown language generator name: {gen_name}")),
     }
-}
-
-pub fn language_generator(path: &Path, gen_name: &str, schema: &Schema) -> Result<(), String> {
-    generate_lang_files(path, gen_name, schema)
-        .map_err(|err| format!("Failed to generate language files! Error: {err}"))
+    .map_err(|err| format!("Failed to generate language files! Error: {err}"))
 }
 
 pub fn process_text(path: &Path, text: &str, args: &[String]) -> Result<(), String> {
@@ -77,7 +73,7 @@ pub fn process_text(path: &Path, text: &str, args: &[String]) -> Result<(), Stri
         .filter_map(|arg| arg.strip_prefix("--gen=").map(ToString::to_string))
         .next()
     {
-        language_generator(path, &gen_name, &schema)?;
+        generate_lang_files(path, &gen_name, &schema)?;
         println!("\tGenerated language files using {gen_name} generator.");
     }
 
