@@ -188,7 +188,17 @@ impl Generator {
         } else if name.starts_with('<') && name.ends_with('>') {
             self.process_vector(name)?
         } else {
-            self.process_field(name)?
+            let currently_defined_type = &self.schema.types[self.current_index];
+
+            if name == currently_defined_type.name {
+                currently_defined_type
+                    .fields
+                    .iter()
+                    .map(|field| field.size(&self.schema))
+                    .sum()
+            } else {
+                self.process_field(name)?
+            }
         };
 
         self.current_offset += size;

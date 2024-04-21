@@ -1,5 +1,7 @@
 #![feature(vec_into_raw_parts)]
 
+use std::mem::size_of;
+
 use binterop_macro::binterop_inline;
 
 mod helpers;
@@ -37,14 +39,12 @@ fn inline() {
     };
 
     binterop_inline! {
-        "test",
-        struct TestAB {
-            a: u32,
-            b: u32,
-        }
+    "recursive",
+    struct Recursive {
+        depth: u32,
+        recursive: Recursive
+    }
     }
 
-    let test_ab = TestAB { a: 13, b: 37 };
-
-    dbg!(some_other_type, test, test_ab);
+    dbg!(some_other_type, test, size_of::<Recursive>());
 }

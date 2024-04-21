@@ -1,0 +1,4 @@
+struct Recursive {
+    depth: u32,
+    recursive: Recursive
+}
