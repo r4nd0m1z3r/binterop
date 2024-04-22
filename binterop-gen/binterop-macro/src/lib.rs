@@ -62,6 +62,13 @@ pub fn binterop_inline(token_stream: TokenStream) -> TokenStream {
     fs::write(
         generated_dir
             .join(name.trim_matches('"'))
+            .with_extension("bintdef"),
+        schema_text,
+    )
+    .unwrap();
+    fs::write(
+        generated_dir
+            .join(name.trim_matches('"'))
             .with_extension("json"),
         serialize_schema(&schema).unwrap(),
     )
