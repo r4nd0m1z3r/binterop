@@ -6,27 +6,11 @@ use backend::language_generators::rust_gen::RustGenerator;
 use backend::language_generators::LanguageGenerator;
 use backend::optimization::SchemaOptimizations;
 use proc_macro::{TokenStream, TokenTree};
-use std::panic::{set_hook, PanicInfo};
 use std::path::PathBuf;
 use std::{env, fs};
 
-fn panic_handler(_: &PanicInfo) {
-    let manifest_dir = env::var("CARGO_MANIFEST_DIR")
-        .map(|mut dir| {
-            dir.push('/');
-            dir
-        })
-        .unwrap_or_default();
-    let generated_dir = PathBuf::from(format!("{manifest_dir}binterop_generated"));
-
-    fs::remove_dir_all(generated_dir)
-        .unwrap_or_else(|err| eprintln!("Failed to remove generated files folder! Error: {err:?}"));
-}
-
 #[proc_macro]
 pub fn binterop_inline(token_stream: TokenStream) -> TokenStream {
-    set_hook(Box::new(panic_handler));
-
     let mut token_stream_iter = token_stream.into_iter();
 
     let mut name = String::new();
