@@ -1,7 +1,7 @@
 use std::borrow::{Borrow, Cow};
 use std::collections::VecDeque;
-use std::fs;
 use std::path::PathBuf;
+use std::{env, fs};
 
 #[derive(Clone, Debug)]
 pub enum Token<'a> {
@@ -50,7 +50,13 @@ impl<'a> Tokenizer<'a> {
                     PathBuf::from(relative_path.as_ref())
                 }
                 .canonicalize()
-                .map_err(|err| format!("Failed to canonicalize include path! Error: {err:?}"))?;
+                .map_err(|err| {
+                    format!(
+                        "Failed to canonicalize include path! Current directory: {:?}, Path: {:?}, Error: {err:?}",
+                        env::current_dir(),
+                        self.file_path
+                    )
+                })?;
 
                 let include_text = fs::read_to_string(&path)
                     .map_err(|err| format!("Failed to read include {path:?}! Error: {err:?}"))?;
