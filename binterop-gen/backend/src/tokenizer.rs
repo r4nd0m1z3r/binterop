@@ -52,9 +52,8 @@ impl<'a> Tokenizer<'a> {
                 .canonicalize()
                 .map_err(|err| {
                     format!(
-                        "Failed to canonicalize include path! Current directory: {:?}, Path: {:?}, Error: {err:?}",
-                        env::current_dir(),
-                        self.file_path
+                        "Failed to canonicalize include path! Current directory: {:?}, Path: {relative_path:?}, Error: {err:?}",
+                        env::current_dir()
                     )
                 })?;
 
