@@ -41,19 +41,19 @@ impl<'a> Tokenizer<'a> {
                 let relative_path = chunk_source
                     .pop_front()
                     .ok_or("No path token after include was found!")?;
-                let path = if let Some(path) = self.file_path.as_ref() {
-                    let mut new_path = path.parent().unwrap().to_path_buf();
+                let relative_path = relative_path.as_ref().trim_matches('"');
+                let path = self
+                    .file_path
+                    .as_ref()
+                    .map(|path| path.parent().unwrap().to_path_buf())
+                    .unwrap_or(env::current_dir().unwrap_or_default())
+                    .join(relative_path);
 
-                    new_path.push(relative_path.as_ref());
-                    new_path
-                } else {
-                    PathBuf::from(relative_path.as_ref())
-                }
-                .canonicalize()
+                let path = path.canonicalize()
                 .map_err(|err| {
                     format!(
-                        "Failed to canonicalize include path! Current directory: {:?}, Path: {relative_path:?}, Error: {err:?}",
-                        env::current_dir()
+                        "Failed to canonicalize include path! Current directory: {:?}, Path: {path:?}, Error: {err:?}",
+                        env::current_dir().unwrap_or_default()
                     )
                 })?;
 

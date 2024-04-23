@@ -31,7 +31,16 @@ pub fn binterop_inline(token_stream: TokenStream) -> TokenStream {
         .map(|tree| tree.to_string())
         .intersperse(" ".to_string())
         .collect::<String>();
-    let schema = generate_schema(None, &schema_text, SchemaOptimizations::default()).unwrap();
+    if schema_text.is_empty() {
+        return TokenStream::new();
+    }
+
+    let schema = generate_schema(
+        Some(file_path.clone()),
+        &schema_text,
+        SchemaOptimizations::default(),
+    )
+    .unwrap();
 
     let manifest_dir = env::var("CARGO_MANIFEST_DIR")
         .map(|mut dir| {
