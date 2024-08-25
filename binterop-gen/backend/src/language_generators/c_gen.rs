@@ -64,7 +64,7 @@ impl CGenerator {
                 let vector_type = schema.vectors.get(type_index).ok_or(format!(
                     "{referer_name} references vector type which is not present in schema!"
                 ))?;
-                self.generate_heap_array_type(schema, vector_type)
+                self.generate_vector_type(schema, vector_type)
             }
             Type::Data => {
                 let data_type = schema.types.get(type_index).ok_or(format!(
@@ -91,7 +91,7 @@ impl CGenerator {
         }
     }
 
-    fn generate_heap_array_type(
+    fn generate_vector_type(
         &mut self,
         schema: &Schema,
         heap_array_type: &VectorType,
