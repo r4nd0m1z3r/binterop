@@ -1,6 +1,6 @@
 use binterop::schema::Schema;
 use std::alloc::Layout;
-use std::env;
+use std::{env, slice};
 
 #[derive(Copy, Clone)]
 pub struct SchemaOptimizations {
@@ -52,31 +52,16 @@ fn optimize_data_type_layouts(schema: &mut Schema) {
 }
 
 fn add_padding(schema: &mut Schema) {
-    let mut aligned_offsets = Vec::with_capacity(
-        schema
-            .types
-            .iter()
-            .map(|data_type| data_type.fields.len())
-            .sum(),
-    );
+    let types = unsafe { slice::from_raw_parts_mut(schema.types.as_mut_ptr(), schema.types.len()) };
 
-    for data_type in &schema.types {
+    for data_type in types {
         let mut layout = Layout::from_size_align(0, 1).unwrap();
-        for field_layout in data_type.fields.iter().map(|field| field.layout(schema)) {
+        for field in &mut data_type.fields {
+            let field_layout = field.layout(schema);
             let (new_layout, offset) = layout.extend(field_layout).unwrap();
             layout = new_layout;
-            aligned_offsets.push(offset);
+            field.offset = offset;
         }
-    }
-
-    for (field, offset) in schema
-        .types
-        .iter_mut()
-        .flat_map(|data_type| data_type.fields.iter_mut())
-        .zip(aligned_offsets)
-    {
-        field.padding_size = offset - field.offset;
-        field.offset = offset;
     }
 
     schema.is_packed = false;
