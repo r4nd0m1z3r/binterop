@@ -1,5 +1,5 @@
 #![feature(vec_into_raw_parts)]
-#![feature(new_uninit)]
+#![feature(new_zeroed_alloc)]
 
 use crate::main::helpers::Vector;
 use crate::main::{GuestToHost, HostToGuest};
