@@ -23,7 +23,7 @@ impl Binterop for Test {
                 Field::new_from_wrapped(&(i32::binterop_type(schema)), schema),
                 Field::new_from_wrapped(&(i32::binterop_type(schema)), schema),
                 Field::new_from_wrapped(&(Vector::<i32>::binterop_type(schema)), schema),
-                Field::new_from_wrapped(&(<[f32; 69]>::binterop_type(schema)), schema),
+                Field::new_from_wrapped(&(<Vector<i32>>::binterop_type(schema)), schema),
             ],
         );
 

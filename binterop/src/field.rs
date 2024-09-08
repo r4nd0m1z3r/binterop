@@ -41,7 +41,7 @@ impl Field {
     pub fn new_from_wrapped(wrapped_type: &WrappedType, schema: &Schema) -> Self {
         let type_index = schema
             .wrapped_type_index(wrapped_type)
-            .expect("Provided schema doesnt have this type!");
+            .unwrap_or_else(|| panic!("Provided schema doesnt contain type {wrapped_type:#?}"));
         let name = match wrapped_type {
             WrappedType::Array(array_type) => {
                 let inner_type_name =

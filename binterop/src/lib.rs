@@ -43,6 +43,9 @@ impl<T: Binterop, const N: usize> Binterop for [T; N] {
             .wrapped_type_index(&inner_type)
             .expect("Provided schema doesnt contain this type!");
 
+        let array_type = ArrayType::new(inner_type.r#type(), inner_type_index, N);
+        schema.arrays.push(array_type);
+
         WrappedType::Array(ArrayType::new(inner_type.r#type(), inner_type_index, N))
     }
 }
@@ -55,7 +58,7 @@ impl<T: Binterop> Binterop for Vector<T> {
             .expect("Provided schema doesnt contain this type!");
 
         let vector_type = VectorType::new(inner_type.r#type(), inner_type_index);
-        schema.vectors.push(vector_type)
+        schema.vectors.push(vector_type);
 
         WrappedType::Vector(vector_type)
     }
