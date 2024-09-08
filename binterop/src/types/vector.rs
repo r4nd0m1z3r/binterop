@@ -3,7 +3,7 @@ use crate::types::Type;
 use serde::{Deserialize, Serialize};
 use std::mem::size_of;
 
-#[derive(Copy, Clone, Default, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Copy, Clone, Default, Debug, Serialize, Deserialize)]
 pub struct VectorType {
     pub inner_type: Type,
     pub inner_type_index: usize,

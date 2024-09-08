@@ -6,6 +6,7 @@ use crate::types::r#enum::EnumType;
 use crate::types::union::UnionType;
 use crate::types::vector::VectorType;
 use crate::types::{Type, TypeData};
+use crate::WrappedType;
 use serde::{Deserialize, Serialize};
 use std::alloc::Layout;
 use std::borrow::Cow;
@@ -137,6 +138,36 @@ impl Schema {
         }
     }
 
+    pub fn wrapped_type_index(&self, wrapped_type: &WrappedType) -> Option<usize> {
+        match wrapped_type {
+            WrappedType::Array(array_type) => self
+                .arrays
+                .iter()
+                .position(|schema_array_type| schema_array_type == array_type),
+            WrappedType::Data(data_type) => self
+                .types
+                .iter()
+                .position(|schema_data_type| schema_data_type.name == data_type.name),
+            WrappedType::Enum(enum_type) => self
+                .enums
+                .iter()
+                .position(|schema_enum_type| schema_enum_type.name == enum_type.name),
+            WrappedType::Pointer(pointer_type) => self
+                .pointers
+                .iter()
+                .position(|schema_pointer_type| schema_pointer_type == pointer_type),
+            WrappedType::Primitive(primitive_type) => PRIMITIVES.index_of(primitive_type.name),
+            WrappedType::Union(union_type) => self
+                .unions
+                .iter()
+                .position(|schema_union_type| schema_union_type.name == union_type.name),
+            WrappedType::Vector(vector_type) => self
+                .vectors
+                .iter()
+                .position(|schema_vector_type| schema_vector_type == vector_type),
+        }
+    }
+
     pub fn type_data_by_name(&self, name: &str) -> Result<TypeData, String> {
         if let Some(index) = PRIMITIVES.index_of(name) {
             let type_size = PRIMITIVES[name].size;
@@ -194,5 +225,16 @@ impl Schema {
             .collect::<Vec<_>>();
 
         Err(format!("Failed to find type with name {name:?}!\n\tAvailable types: {available_type_names:?}\n\tAvailable enums: {available_enum_names:?}\n\tAvailable unions: {available_union_names:?}"))
+    }
+
+    pub fn append(&mut self, schema: &mut Self) {
+        self.is_packed |= schema.is_packed;
+
+        self.types.append(&mut schema.types);
+        self.enums.append(&mut schema.enums);
+        self.unions.append(&mut schema.unions);
+        self.arrays.append(&mut schema.arrays);
+        self.pointers.append(&mut schema.pointers);
+        self.vectors.append(&mut schema.vectors);
     }
 }

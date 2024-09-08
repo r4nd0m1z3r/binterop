@@ -2,7 +2,7 @@ use crate::types::Type;
 use serde::{Deserialize, Serialize};
 use std::mem::size_of;
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct PointerType {
     pub inner_type: Type,
     pub inner_type_index: usize,

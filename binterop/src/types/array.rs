@@ -2,7 +2,7 @@ use crate::schema::Schema;
 use crate::types::Type;
 use serde::{Deserialize, Serialize};
 
-#[derive(Copy, Clone, Default, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Copy, Clone, Default, Debug, Serialize, Deserialize)]
 pub struct ArrayType {
     pub inner_type: Type,
     pub inner_type_index: usize,

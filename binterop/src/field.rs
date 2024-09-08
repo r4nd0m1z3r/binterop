@@ -1,5 +1,5 @@
-use crate::schema::Schema;
 use crate::types::Type;
+use crate::{schema::Schema, types::WrappedType};
 use serde::{Deserialize, Serialize};
 use std::{alloc::Layout, borrow::Cow};
 
@@ -35,6 +35,42 @@ impl Field {
             type_index: 0,
             offset: 0,
             padding_size: 0,
+        }
+    }
+
+    pub fn new_from_wrapped(wrapped_type: &WrappedType, schema: &Schema) -> Self {
+        let type_index = schema
+            .wrapped_type_index(wrapped_type)
+            .expect("Provided schema doesnt have this type!");
+        let name = match wrapped_type {
+            WrappedType::Array(array_type) => {
+                let inner_type_name =
+                    schema.type_name(array_type.inner_type, array_type.inner_type_index);
+                format!("[{inner_type_name}:{}]", array_type.len)
+            }
+            WrappedType::Data(data_type) => data_type.name.clone(),
+            WrappedType::Enum(enum_type) => enum_type.name.clone(),
+            WrappedType::Pointer(pointer_type) => {
+                let inner_type_name =
+                    schema.type_name(pointer_type.inner_type, pointer_type.inner_type_index);
+
+                format!("{inner_type_name}*")
+            }
+            WrappedType::Primitive(primitive_type) => primitive_type.name.to_string(),
+            WrappedType::Union(union_type) => union_type.name.clone(),
+            WrappedType::Vector(vector_type) => {
+                let inner_type_name =
+                    schema.type_name(vector_type.inner_type, vector_type.inner_type_index);
+
+                format!("<{inner_type_name}>")
+            }
+        };
+
+        Self {
+            name,
+            r#type: wrapped_type.r#type(),
+            type_index,
+            ..Default::default()
         }
     }
 
