@@ -1,18 +1,20 @@
 #![feature(iter_intersperse)]
 #![feature(proc_macro_span)]
+#![feature(vec_into_raw_parts)]
 
 use backend::helpers::{generate_schema, serialize_schema};
 use backend::language_generators::rust_gen::RustGenerator;
 use backend::language_generators::LanguageGenerator;
 use backend::optimization::SchemaOptimizations;
-use proc_macro::{TokenStream, TokenTree};
+use proc_macro::TokenTree;
+use proc_macro2::TokenStream;
 use quote::quote;
 use std::path::PathBuf;
 use std::{env, fs};
 use syn::{Data, DataEnum, DataStruct, DataUnion, DeriveInput};
 
 #[proc_macro]
-pub fn binterop_inline(token_stream: TokenStream) -> TokenStream {
+pub fn binterop_inline(token_stream: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut token_stream_iter = token_stream.into_iter();
 
     let mut name = String::new();
@@ -34,7 +36,7 @@ pub fn binterop_inline(token_stream: TokenStream) -> TokenStream {
         .intersperse(" ".to_string())
         .collect::<String>();
     if schema_text.is_empty() {
-        return TokenStream::new();
+        return TokenStream::new().into();
     }
 
     let schema = generate_schema(
@@ -81,16 +83,37 @@ pub fn binterop_inline(token_stream: TokenStream) -> TokenStream {
 }
 
 fn struct_derive(data_struct: DataStruct) -> TokenStream {
-    data_struct
+    let fields_tokens = data_struct
         .fields
-        .into_iter()
+        .iter()
         .map(|field| {
-            let field_name = field.ident;
-            let quote = quote! {};
+            let type_name = &field.ty;
+            let field = quote! {
+                Field::new_from_wrapped(&(#type_name::binterop_type(schema)), schema),
+            };
 
-            Into::<TokenStream>::into(quote)
+            Into::<TokenStream>::into(field)
         })
-        .collect()
+        .collect::<TokenStream>();
+
+    quote! {
+        fn binterop_type(schema: &mut Schema) -> WrappedType {
+            let mut data_type = DataType::from_fields(
+                type_name::<Self>(),
+                &[#fields_tokens]
+            );
+
+            let mut layout = Layout::from_size_align(0, 1).unwrap();
+            for field in &mut data_type.fields {
+                let field_layout = field.layout(schema);
+                let (new_layout, offset) = layout.extend(field_layout).unwrap();
+                layout = new_layout;
+                field.offset = offset;
+            }
+
+            WrappedType::Data(data_type)
+        }
+    }
 }
 
 fn enum_derive(data_enum: DataEnum) -> TokenStream {
@@ -102,16 +125,29 @@ fn union_derive(data_union: DataUnion) -> TokenStream {
 }
 
 #[proc_macro_derive(Binterop)]
-pub fn derive_binterop(token_stream: TokenStream) -> TokenStream {
+pub fn derive_binterop(token_stream: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input: DeriveInput = syn::parse(token_stream).unwrap();
 
-    match input.data {
-        Data::Struct(data_struct) => {
-            let out = struct_derive(data_struct);
-            dbg!(out.to_string());
-            out
-        }
+    let name = input.ident;
+    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+
+    let binterop_impl = match input.data {
+        Data::Struct(data_struct) => struct_derive(data_struct),
         Data::Enum(data_enum) => enum_derive(data_enum),
         Data::Union(data_union) => union_derive(data_union),
-    }
+    };
+
+    let expanded = quote! {
+        use binterop::types::{WrappedType, data::DataType};
+        use binterop::{Binterop, schema::Schema, std::Vector};
+        use binterop::field::Field;
+        use std::alloc::Layout;
+        use std::any::type_name;
+
+        impl #impl_generics binterop::Binterop for #name #ty_generics #where_clause {
+            #binterop_impl
+        }
+    };
+
+    expanded.into()
 }
