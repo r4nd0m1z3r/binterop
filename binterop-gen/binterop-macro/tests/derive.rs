@@ -5,7 +5,7 @@ use binterop_macro::Binterop;
 struct Test {
     a: i32,
     b: i32,
-    //c: Vector<i32>,
+    c: Vector<i32>,
 }
 
 #[test]

@@ -8,7 +8,7 @@ use backend::language_generators::LanguageGenerator;
 use backend::optimization::SchemaOptimizations;
 use proc_macro::TokenTree;
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{quote, ToTokens};
 use std::path::PathBuf;
 use std::{env, fs};
 use syn::{Data, DataEnum, DataStruct, DataUnion, DeriveInput};
@@ -87,7 +87,18 @@ fn struct_derive(data_struct: DataStruct) -> TokenStream {
         .fields
         .iter()
         .map(|field| {
-            let type_name = &field.ty;
+            let mut type_name = field.ty.to_token_stream().to_string();
+            let insertion_indices = type_name
+                .chars()
+                .enumerate()
+                .flat_map(|(index, ch)| if ch == '<' { Some(index) } else { None })
+                .collect::<Vec<_>>();
+
+            for index in insertion_indices {
+                type_name.insert_str(index, "::");
+            }
+
+            let type_name: TokenStream = syn::parse_str(&type_name).unwrap();
             let field = quote! {
                 Field::new_from_wrapped(&(#type_name::binterop_type(schema)), schema),
             };
