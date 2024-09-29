@@ -48,7 +48,22 @@ fn struct_derive(data_struct: DataStruct) -> TokenStream {
 }
 
 fn enum_derive(data_enum: DataEnum) -> TokenStream {
-    unimplemented!()
+    let variant_names = data_enum
+        .variants
+        .iter()
+        .map(|variant| {
+            let variant = variant.ident.to_string();
+            quote!(#variant,)
+        })
+        .collect::<TokenStream>();
+
+    quote! {
+        fn binterop_type(schema: &mut Schema) -> WrappedType {
+            let enum_type = EnumType::new(type_name::<Self>(), &[#variant_names]);
+
+            WrappedType::Enum(enum_type)
+        }
+    }
 }
 
 fn union_derive(data_union: DataUnion) -> TokenStream {
