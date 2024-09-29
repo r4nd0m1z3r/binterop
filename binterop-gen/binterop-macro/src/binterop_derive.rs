@@ -28,7 +28,12 @@ fn struct_derive(data_struct: DataStruct) -> TokenStream {
         .collect::<TokenStream>();
 
     quote! {
-        fn binterop_type(schema: &mut Schema) -> WrappedType {
+        fn binterop_type(schema: &mut binterop::schema::Schema) -> binterop::types::WrappedType {
+            use binterop::types::{WrappedType, data::DataType};
+            use binterop::field::Field;
+            use std::alloc::Layout;
+            use std::any::type_name;
+
             let mut data_type = DataType::from_fields(
                 type_name::<Self>(),
                 &[#fields_tokens]
@@ -58,7 +63,12 @@ fn enum_derive(data_enum: DataEnum) -> TokenStream {
         .collect::<TokenStream>();
 
     quote! {
-        fn binterop_type(schema: &mut Schema) -> WrappedType {
+        fn binterop_type(schema: &mut binterop::schema::Schema) -> binterop::types::WrappedType {
+            use binterop::types::{WrappedType, r#enum::EnumType};
+            use binterop::field::Field;
+            use std::alloc::Layout;
+            use std::any::type_name;
+
             let enum_type = EnumType::new(type_name::<Self>(), &[#variant_names]);
 
             WrappedType::Enum(enum_type)
@@ -83,12 +93,6 @@ pub(crate) fn derive_binterop(token_stream: proc_macro::TokenStream) -> proc_mac
     };
 
     let expanded = quote! {
-        use binterop::types::{WrappedType, data::DataType};
-        use binterop::{Binterop, schema::Schema, std::Vector};
-        use binterop::field::Field;
-        use std::alloc::Layout;
-        use std::any::type_name;
-
         impl #impl_generics binterop::Binterop for #name #ty_generics #where_clause {
             #binterop_impl
         }
