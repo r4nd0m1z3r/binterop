@@ -2,6 +2,8 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::{Data, DataEnum, DataStruct, DataUnion, DeriveInput};
 
+use crate::has_repr;
+
 fn struct_derive(data_struct: DataStruct) -> TokenStream {
     let fields_tokens = data_struct
         .fields
@@ -85,6 +87,11 @@ pub(crate) fn derive_binterop(token_stream: proc_macro::TokenStream) -> proc_mac
 
     let name = input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+
+    assert!(
+        has_repr(&input.attrs, "C"),
+        "Binterop can only work with C structure layout!"
+    );
 
     let binterop_impl = match input.data {
         Data::Struct(data_struct) => struct_derive(data_struct),
