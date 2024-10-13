@@ -2,7 +2,6 @@
 #![feature(proc_macro_span)]
 #![feature(vec_into_raw_parts)]
 
-use quote::ToTokens;
 use syn::{AttrStyle, Attribute, Meta::List, MetaList, Path};
 
 mod binterop_derive;
