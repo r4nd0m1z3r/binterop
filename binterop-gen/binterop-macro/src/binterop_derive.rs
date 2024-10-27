@@ -10,6 +10,7 @@ fn struct_derive(data_struct: DataStruct) -> TokenStream {
         .iter()
         .map(|field| {
             let mut type_name = field.ty.to_token_stream().to_string();
+
             let insertion_indices = type_name
                 .chars()
                 .enumerate()
@@ -18,6 +19,10 @@ fn struct_derive(data_struct: DataStruct) -> TokenStream {
 
             for index in insertion_indices {
                 type_name.insert_str(index, "::");
+            }
+
+            if let (Some('['), Some(']')) = (type_name.chars().next(), type_name.chars().last()) {
+                type_name = format!("<{type_name}>");
             }
 
             let type_name: TokenStream = syn::parse_str(&type_name).unwrap();

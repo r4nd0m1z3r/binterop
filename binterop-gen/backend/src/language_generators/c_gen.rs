@@ -1,5 +1,4 @@
 use crate::language_generators::LanguageGenerator;
-use binterop::field::Field;
 use binterop::schema::Schema;
 use binterop::types::data::DataType;
 use binterop::types::primitives::PRIMITIVES;

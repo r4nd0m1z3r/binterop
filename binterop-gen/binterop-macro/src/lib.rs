@@ -1,11 +1,8 @@
-#![feature(iter_intersperse)]
 #![feature(proc_macro_span)]
-#![feature(vec_into_raw_parts)]
 
 use syn::{AttrStyle, Attribute, Meta::List, MetaList, Path};
 
 mod binterop_derive;
-mod binterop_inline;
 
 pub(crate) fn has_repr(attrs: &[Attribute], repr: &str) -> bool {
     for attr in attrs {
@@ -57,11 +54,6 @@ pub(crate) fn has_repr(attrs: &[Attribute], repr: &str) -> bool {
     }
 
     false
-}
-
-#[proc_macro]
-pub fn binterop_inline(token_stream: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    binterop_inline::binterop_inline(token_stream)
 }
 
 #[proc_macro_derive(Binterop)]

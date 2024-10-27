@@ -1,9 +1,7 @@
-use std::Vector;
-
 use schema::Schema;
 use types::pointer::PointerType;
 use types::primitives::PRIMITIVES;
-use types::{array::ArrayType, vector::VectorType, WrappedType};
+use types::{array::ArrayType, WrappedType};
 
 pub mod field;
 pub mod schema;

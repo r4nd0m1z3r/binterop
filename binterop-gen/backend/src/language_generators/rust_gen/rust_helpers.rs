@@ -1,7 +1,9 @@
 #![allow(dead_code)]
 
 use std::fmt::Debug;
+use std::mem::ManuallyDrop;
 
+#[repr(C)]
 pub struct Vector<T> {
     pub ptr: *mut T,
     pub len: u64,
@@ -23,6 +25,20 @@ impl<T: Clone> Clone for Vector<T> {
         new
     }
 }
+impl<T> From<Vec<T>> for Vector<T> {
+    fn from(value: Vec<T>) -> Self {
+        let (ptr, len, capacity) = {
+            let mut vec = ManuallyDrop::new(value);
+            (vec.as_mut_ptr(), vec.len(), vec.capacity())
+        };
+
+        Self {
+            ptr,
+            len: len as u64,
+            capacity: capacity as u64,
+        }
+    }
+}
 impl<T> Vector<T> {
     pub fn new() -> Self {
         let mut vec = vec![];
@@ -32,13 +48,6 @@ impl<T> Vector<T> {
             len: vec.len() as u64,
             capacity: vec.capacity() as u64,
         }
-    }
-
-    fn update_from_vec(&mut self, vec: Vec<T>) {
-        let (ptr, len, capacity) = vec.into_raw_parts();
-        self.ptr = ptr;
-        self.len = len as u64;
-        self.capacity = capacity as u64;
     }
 
     pub fn with_capacity(capacity: u64) -> Self {
@@ -64,7 +73,7 @@ impl<T> Vector<T> {
             unsafe { Vec::from_raw_parts(self.ptr, self.len as usize, self.capacity as usize) };
         vec.reserve(additional as usize);
 
-        self.update_from_vec(vec);
+        *self = vec.into();
     }
 
     pub fn push(&mut self, elem: T) {
@@ -72,7 +81,7 @@ impl<T> Vector<T> {
             unsafe { Vec::from_raw_parts(self.ptr, self.len as usize, self.capacity as usize) };
         vec.push(elem);
 
-        self.update_from_vec(vec);
+        *self = vec.into();
     }
 
     pub fn pop(&mut self) -> Option<T> {
@@ -80,7 +89,7 @@ impl<T> Vector<T> {
             unsafe { Vec::from_raw_parts(self.ptr, self.len as usize, self.capacity as usize) };
         let elem = vec.pop();
 
-        self.update_from_vec(vec);
+        *self = vec.into();
 
         elem
     }

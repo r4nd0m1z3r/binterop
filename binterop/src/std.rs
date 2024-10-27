@@ -2,9 +2,8 @@ use core::slice;
 use std::string::String as RustString;
 
 use crate::{
-    field::Field,
     schema::Schema,
-    types::{data::DataType, vector::VectorType, WrappedType},
+    types::{vector::VectorType, WrappedType},
     Binterop,
 };
 
@@ -53,7 +52,7 @@ impl<T> From<Vec<T>> for Vector<T> {
 #[repr(C)]
 pub struct String(Vector<u8>);
 impl Binterop for String {
-    fn binterop_type(schema: &mut Schema) -> WrappedType {
+    fn binterop_type(_: &mut Schema) -> WrappedType {
         WrappedType::String
     }
 }
