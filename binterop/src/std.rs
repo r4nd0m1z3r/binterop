@@ -53,7 +53,7 @@ impl<T> From<Vec<T>> for Vector<T> {
 #[repr(C)]
 pub struct String(Vector<u8>);
 impl Binterop for String {
-    fn binterop_type(schema: &mut Schema) -> WrappedType {
+    fn binterop_type(_: &mut Schema) -> WrappedType {
         WrappedType::String
     }
 }

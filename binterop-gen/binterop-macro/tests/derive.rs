@@ -10,6 +10,7 @@ struct TestStruct {
     b: i32,
     c: Vector<i32>,
     d: binterop::std::String,
+    e: [u8; 16],
 }
 
 #[repr(C)]
