@@ -1,4 +1,5 @@
 use crate::language_generators::LanguageGenerator;
+use binterop::field::Field;
 use binterop::schema::Schema;
 use binterop::types::data::DataType;
 use binterop::types::primitives::PRIMITIVES;
@@ -66,6 +67,7 @@ impl CGenerator {
                 ))?;
                 self.generate_vector_type(schema, vector_type)
             }
+            Type::String => self.generate_string_type(schema),
             Type::Data => {
                 let data_type = schema.types.get(type_index).ok_or(format!(
                     "{referer_name} references type which is not present in schema!",
@@ -128,6 +130,24 @@ impl CGenerator {
             &[pointer_field_data, len_field_data, capacity_field_data],
         );
         self.generate_data_type(schema, &data_type)
+    }
+
+    fn generate_string_type(&mut self, schema: &Schema) -> Result<(), String> {
+        if self.generated_type_names.contains("String") {
+            return Ok(());
+        }
+
+        self.generate_vector_type(
+            schema,
+            &VectorType::new(Type::Primitive, PRIMITIVES.index_of("u8").unwrap()),
+        )
+        .unwrap();
+
+        self.output.push_str("struct String { data: Vectoru8 }\n");
+
+        self.generated_type_names.insert("String".to_string());
+
+        Ok(())
     }
 
     fn generate_data_type(&mut self, schema: &Schema, data_type: &DataType) -> Result<(), String> {

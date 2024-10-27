@@ -77,6 +77,7 @@ impl Schema {
 
                 Cow::Owned(format!("{inner_type_name}*"))
             }
+            Type::String => Cow::Owned("String".to_string()),
         }
     }
 
@@ -93,7 +94,7 @@ impl Schema {
                 .arrays
                 .get(index)
                 .map(|array_type| array_type.size(self)),
-            Type::Vector => Some(VectorType::size()),
+            Type::Vector | Type::String => Some(VectorType::size()),
             Type::Pointer => Some(PointerType::size()),
         }
     }
@@ -111,7 +112,7 @@ impl Schema {
                 .get(index)
                 .map(|union_type| union_type.is_copy(self)),
             Type::Array => Some(true),
-            Type::Vector => Some(false),
+            Type::Vector | Type::String => Some(false),
             Type::Pointer => Some(true),
         }
     }
@@ -129,7 +130,7 @@ impl Schema {
                 .arrays
                 .get(index)
                 .map(|array_type| array_type.align(self)),
-            Type::Vector => Some(
+            Type::Vector | Type::String => Some(
                 Layout::from_size_align(size_of::<u64>() * 3, size_of::<u64>())
                     .unwrap()
                     .align(),
@@ -165,10 +166,15 @@ impl Schema {
                 .vectors
                 .iter()
                 .position(|schema_vector_type| schema_vector_type == vector_type),
+            WrappedType::String => None,
         }
     }
 
     pub fn type_data_by_name(&self, name: &str) -> Result<TypeData, String> {
+        if name == "String" {
+            return Ok(TypeData::new(0, Type::String, VectorType::size(), false));
+        }
+
         if let Some(index) = PRIMITIVES.index_of(name) {
             let type_size = PRIMITIVES[name].size;
             return Ok(TypeData::new(index, Type::Primitive, type_size, true));

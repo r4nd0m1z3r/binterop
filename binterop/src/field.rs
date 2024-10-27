@@ -64,6 +64,7 @@ impl Field {
 
                 format!("<{inner_type_name}>")
             }
+            WrappedType::String => "String".to_string(),
         };
 
         Self {

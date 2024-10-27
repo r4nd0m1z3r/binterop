@@ -50,20 +50,6 @@ impl<T: Binterop, const N: usize> Binterop for [T; N] {
     }
 }
 
-impl<T: Binterop> Binterop for Vector<T> {
-    fn binterop_type(schema: &mut Schema) -> WrappedType {
-        let inner_type = T::binterop_type(schema);
-        let inner_type_index = schema
-            .wrapped_type_index(&inner_type)
-            .expect("Provided schema doesnt contain this type!");
-
-        let vector_type = VectorType::new(inner_type.r#type(), inner_type_index);
-        schema.vectors.push(vector_type);
-
-        WrappedType::Vector(vector_type)
-    }
-}
-
 impl<T: Binterop> Binterop for *const T {
     fn binterop_type(schema: &mut Schema) -> WrappedType {
         let inner_type = T::binterop_type(schema);

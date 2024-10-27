@@ -42,6 +42,7 @@ pub enum Type {
     Array,
     Vector,
     Pointer,
+    String,
 }
 
 #[derive(Clone, Debug)]
@@ -53,6 +54,7 @@ pub enum WrappedType {
     Primitive(PrimitiveType),
     Union(UnionType),
     Vector(VectorType),
+    String,
 }
 impl WrappedType {
     pub fn r#type(&self) -> Type {
@@ -64,6 +66,7 @@ impl WrappedType {
             WrappedType::Primitive(_) => Type::Primitive,
             WrappedType::Union(_) => Type::Union,
             WrappedType::Vector(_) => Type::Vector,
+            WrappedType::String => Type::String,
         }
     }
 }

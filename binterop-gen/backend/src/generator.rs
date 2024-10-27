@@ -42,7 +42,7 @@ impl Generator {
 
         if self.should_create_type {
             match self.currently_defining.as_ref().unwrap() {
-                Type::Primitive | Type::Array | Type::Vector | Type::Pointer => {}
+                Type::Primitive | Type::Array | Type::Vector | Type::String | Type::Pointer => {}
                 Type::Data => {
                     self.current_index = self.schema.types.len();
                     self.schema.types.push(DataType::default_with_name(ident))
@@ -60,7 +60,7 @@ impl Generator {
             self.should_create_type = false;
         } else {
             match self.currently_defining.as_ref().unwrap() {
-                Type::Primitive | Type::Array | Type::Vector | Type::Pointer => {}
+                Type::Primitive | Type::Array | Type::Vector | Type::String | Type::Pointer => {}
                 Type::Data => self.schema.types[self.current_index]
                     .fields
                     .push(Field::default_with_name(ident)),

@@ -17,4 +17,5 @@ struct SomeStruct {
     some_other_type: SomeOtherType,
     some_other_type_array: [SomeOtherType:3],
     some_other_type_vector: <SomeOtherType>,
+    some_string: String,
 }
