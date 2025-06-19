@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use std::fmt::Debug;
+use std::mem::ManuallyDrop;
 
 pub struct Vector<T> {
     pub ptr: *mut T,
@@ -35,7 +36,10 @@ impl<T> Vector<T> {
     }
 
     fn update_from_vec(&mut self, vec: Vec<T>) {
-        let (ptr, len, capacity) = vec.into_raw_parts();
+        let (ptr, len, capacity) = {
+            let mut vec = ManuallyDrop::new(vec);
+            (vec.as_mut_ptr(), vec.len(), vec.capacity())
+        };
         self.ptr = ptr;
         self.len = len as u64;
         self.capacity = capacity as u64;
