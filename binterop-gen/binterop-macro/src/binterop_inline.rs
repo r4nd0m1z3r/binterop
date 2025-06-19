@@ -1,4 +1,7 @@
-use std::{env, fs, path::PathBuf};
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+};
 
 use backend::{
     helpers::{generate_schema, serialize_schema},
@@ -12,14 +15,17 @@ pub(crate) fn binterop_inline(token_stream: proc_macro::TokenStream) -> proc_mac
     let mut token_stream_iter = token_stream.into_iter();
 
     let mut name = String::new();
-    let mut file_path = PathBuf::new();
+    let mut file_path = None;
     for token in token_stream_iter
         .by_ref()
         .take_while(|token| token.to_string() != ",")
     {
         if let TokenTree::Literal(literal) = token {
             name = literal.to_string();
-            file_path = literal.span().source_file().path();
+
+            if let Some(path) = literal.span().local_file() {
+                file_path = path.parent().map(Path::to_path_buf)
+            }
         }
     }
 
@@ -34,7 +40,7 @@ pub(crate) fn binterop_inline(token_stream: proc_macro::TokenStream) -> proc_mac
     }
 
     let schema = generate_schema(
-        Some(file_path.clone()),
+        file_path.clone(),
         &schema_text,
         SchemaOptimizations::default(),
     )
@@ -68,7 +74,10 @@ pub(crate) fn binterop_inline(token_stream: proc_macro::TokenStream) -> proc_mac
     let mut generator = RustGenerator::default();
     generator.output.clear();
 
-    let helpers_path = file_path.with_file_name("helpers").with_extension("rs");
+    let helpers_path = file_path
+        .unwrap_or_default()
+        .join("helpers")
+        .with_extension("rs");
 
     generator.feed(&schema).unwrap();
 
