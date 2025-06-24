@@ -38,7 +38,7 @@ impl Field {
         }
     }
 
-    pub fn new_from_wrapped(wrapped_type: &WrappedType, schema: &Schema) -> Self {
+    pub fn new_from_wrapped(name: &str, wrapped_type: &WrappedType, schema: &Schema) -> Self {
         let type_index = schema.wrapped_type_index(wrapped_type).unwrap_or_else(|| {
             if let WrappedType::String = wrapped_type {
                 0
@@ -46,33 +46,9 @@ impl Field {
                 panic!("Provided schema doesnt contain type {wrapped_type:#?}")
             }
         });
-        let name = match wrapped_type {
-            WrappedType::Array(array_type) => {
-                let inner_type_name =
-                    schema.type_name(array_type.inner_type, array_type.inner_type_index);
-                format!("[{inner_type_name}:{}]", array_type.len)
-            }
-            WrappedType::Data(data_type) => data_type.name.clone(),
-            WrappedType::Enum(enum_type) => enum_type.name.clone(),
-            WrappedType::Pointer(pointer_type) => {
-                let inner_type_name =
-                    schema.type_name(pointer_type.inner_type, pointer_type.inner_type_index);
-
-                format!("{inner_type_name}*")
-            }
-            WrappedType::Primitive(primitive_type) => primitive_type.name.to_string(),
-            WrappedType::Union(union_type) => union_type.name.clone(),
-            WrappedType::Vector(vector_type) => {
-                let inner_type_name =
-                    schema.type_name(vector_type.inner_type, vector_type.inner_type_index);
-
-                format!("<{inner_type_name}>")
-            }
-            WrappedType::String => "String".to_string(),
-        };
 
         Self {
-            name,
+            name: name.to_string(),
             r#type: wrapped_type.r#type(),
             type_index,
             ..Default::default()

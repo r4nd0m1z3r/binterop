@@ -7,8 +7,9 @@ use crate::has_repr;
 fn struct_derive(data_struct: DataStruct) -> TokenStream {
     let fields_tokens = data_struct
         .fields
-        .iter()
-        .map(|field| {
+        .into_iter()
+        .enumerate()
+        .map(|(index, field)| {
             let mut type_name = field.ty.to_token_stream().to_string();
 
             let insertion_indices = type_name
@@ -25,9 +26,14 @@ fn struct_derive(data_struct: DataStruct) -> TokenStream {
                 type_name = format!("<{type_name}>");
             }
 
+            let field_name = if let Some(name) = field.ident {
+                name.to_string()
+            } else {
+                format!("_{index}")
+            };
             let type_name: TokenStream = syn::parse_str(&type_name).unwrap();
             let field = quote! {
-                Field::new_from_wrapped(&(#type_name::binterop_type(schema)), schema),
+                Field::new_from_wrapped(#field_name, &(#type_name::binterop_type(schema)), schema),
             };
 
             Into::<TokenStream>::into(field)
@@ -54,6 +60,8 @@ fn struct_derive(data_struct: DataStruct) -> TokenStream {
                 field.offset = offset;
             }
 
+            schema.types.push(data_type.clone());
+
             WrappedType::Data(data_type)
         }
     }
@@ -77,6 +85,8 @@ fn enum_derive(data_enum: DataEnum) -> TokenStream {
             use std::any::type_name;
 
             let enum_type = EnumType::new(type_name::<Self>(), &[#variant_names]);
+
+            schema.enums.push(enum_type.clone());
 
             WrappedType::Enum(enum_type)
         }

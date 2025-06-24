@@ -55,6 +55,9 @@ impl<T: Binterop> Binterop for *const T {
             .wrapped_type_index(&inner_type)
             .expect("Provided schema doesnt contain this type!");
 
-        WrappedType::Pointer(PointerType::new(inner_type.r#type(), inner_type_index))
+        let pointer_type = PointerType::new(inner_type.r#type(), inner_type_index);
+        schema.pointers.push(pointer_type);
+
+        WrappedType::Pointer(pointer_type)
     }
 }

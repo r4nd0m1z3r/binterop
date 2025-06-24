@@ -27,4 +27,7 @@ pub fn derive() {
 
     dbg!(TestStruct::binterop_type(&mut schema));
     dbg!(TestEnum::binterop_type(&mut schema));
+
+    let schema_json = backend::helpers::serialize_schema(&schema).unwrap();
+    eprintln!("{schema_json}");
 }
