@@ -1,5 +1,6 @@
 use crate::types::array::ArrayType;
 use crate::types::data::DataType;
+use crate::types::function::FunctionType;
 use crate::types::pointer::PointerType;
 use crate::types::primitives::PRIMITIVES;
 use crate::types::r#enum::EnumType;
@@ -21,6 +22,7 @@ pub struct Schema {
     pub arrays: Vec<ArrayType>,
     pub pointers: Vec<PointerType>,
     pub vectors: Vec<VectorType>,
+    pub functions: Vec<FunctionType>,
 }
 impl Schema {
     pub fn new(
@@ -31,6 +33,7 @@ impl Schema {
         arrays: &[ArrayType],
         pointers: &[PointerType],
         vectors: &[VectorType],
+        functions: &[FunctionType],
     ) -> Self {
         Self {
             is_packed,
@@ -40,6 +43,7 @@ impl Schema {
             arrays: arrays.to_vec(),
             pointers: pointers.to_vec(),
             vectors: vectors.to_vec(),
+            functions: functions.to_vec(),
         }
     }
 
@@ -78,6 +82,18 @@ impl Schema {
                 Cow::Owned(format!("{inner_type_name}*"))
             }
             Type::String => Cow::Owned("String".to_string()),
+            Type::Function => {
+                let function = &self.functions[index];
+                let args = function
+                    .args
+                    .iter()
+                    .map(|arg| {
+                        let arg_type = arg.r#type.as_ref().unwrap();
+                        self.type_name(arg_type.r#type, arg_type.index)
+                    })
+                    .collect::<Vec<_>>();
+                Cow::Owned(format!("Function({})", args.join(", ")))
+            }
         }
     }
 
@@ -96,6 +112,7 @@ impl Schema {
                 .map(|array_type| array_type.size(self)),
             Type::Vector | Type::String => Some(VectorType::size()),
             Type::Pointer => Some(PointerType::size()),
+            Type::Function => Some(FunctionType::size()),
         }
     }
 
@@ -114,6 +131,7 @@ impl Schema {
             Type::Array => Some(true),
             Type::Vector | Type::String => Some(false),
             Type::Pointer => Some(true),
+            Type::Function => Some(true),
         }
     }
 
@@ -136,6 +154,7 @@ impl Schema {
                     .align(),
             ),
             Type::Pointer => Some(align_of::<u64>()),
+            Type::Function => Some(align_of::<u64>()),
         }
     }
 
@@ -167,6 +186,10 @@ impl Schema {
                 .iter()
                 .position(|schema_vector_type| schema_vector_type == vector_type),
             WrappedType::String => None,
+            WrappedType::Function(function_type) => self
+                .functions
+                .iter()
+                .position(|schema_function_type| schema_function_type == function_type),
         }
     }
 
@@ -214,6 +237,18 @@ impl Schema {
             return Ok(TypeData::new(index, Type::Union, type_size, is_copy));
         }
 
+        if let Some(index) = self
+            .functions
+            .iter()
+            .enumerate()
+            .find(|(_, function_type)| function_type.name == *name)
+            .map(|(index, _)| index)
+        {
+            let type_size = self.type_size(Type::Function, index).unwrap();
+            let is_copy = self.is_copy(Type::Function, index).unwrap();
+            return Ok(TypeData::new(index, Type::Function, type_size, is_copy));
+        }
+
         let available_type_names = self
             .types
             .iter()
@@ -229,8 +264,13 @@ impl Schema {
             .iter()
             .map(|union_type| union_type.name.clone())
             .collect::<Vec<_>>();
+        let available_function_names = self
+            .functions
+            .iter()
+            .map(|function_type| function_type.name.clone())
+            .collect::<Vec<_>>();
 
-        Err(format!("Failed to find type with name {name:?}!\n\tAvailable types: {available_type_names:?}\n\tAvailable enums: {available_enum_names:?}\n\tAvailable unions: {available_union_names:?}"))
+        Err(format!("Failed to find type with name {name:?}!\n\tAvailable types: {available_type_names:?}\n\tAvailable enums: {available_enum_names:?}\n\tAvailable unions: {available_union_names:?}\n\tAvailable functions: {available_function_names:?}"))
     }
 
     pub fn append(&mut self, schema: &mut Self) {

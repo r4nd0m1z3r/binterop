@@ -1,0 +1,1 @@
+{"is_packed":false,"types":[],"enums":[],"unions":[],"arrays":[],"pointers":[],"vectors":[],"functions":[{"name":"add","args":[],"return_type":{"index":10,"type":"Primitive","size":8,"is_copy":true}}]}

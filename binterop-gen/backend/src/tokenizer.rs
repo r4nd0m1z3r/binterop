@@ -12,6 +12,8 @@ pub enum Token<'a> {
     Enum,
     Union,
     Type(Cow<'a, str>),
+    Fn,
+    FnReturn,
 }
 
 pub struct Tokenizer<'a> {
@@ -22,7 +24,7 @@ pub struct Tokenizer<'a> {
 }
 impl<'a> Tokenizer<'a> {
     fn prepare_text(text: &str) -> VecDeque<Cow<'a, str>> {
-        text.replace(['\n', '\r', ','], " ")
+        text.replace(['\n', '\r', ',', '(', ')'], " ")
             .split(' ')
             .filter(|chunk| !chunk.is_empty())
             .map(|chunk| Cow::from(chunk.to_string()))
@@ -30,6 +32,8 @@ impl<'a> Tokenizer<'a> {
     }
 
     fn match_chunk(&mut self, chunk: Cow<'a, str>) -> Result<Option<Token>, String> {
+        // eprint!("{chunk:?} -> ");
+
         match chunk.borrow() {
             "include" => {
                 let chunk_source = if let Some(chunks) = self.include_chunks_queue.last_mut() {
@@ -73,6 +77,7 @@ impl<'a> Tokenizer<'a> {
             "struct" => Ok(Some(Token::Struct)),
             "enum" => Ok(Some(Token::Enum)),
             "union" => Ok(Some(Token::Union)),
+            "fn" => Ok(Some(Token::Fn)),
             _ => {
                 if chunk.chars().all(char::is_alphanumeric)
                     || (self.next_is_type
@@ -86,13 +91,16 @@ impl<'a> Tokenizer<'a> {
                     } else {
                         Ok(Some(Token::Ident(chunk)))
                     }
+                } else if chunk == "->" {
+                    self.next_is_type = true;
+                    Ok(Some(Token::FnReturn))
                 } else {
                     self.next_is_type = chunk.ends_with(':');
                     Ok(Some(Token::Ident(
                         chunk
                             .strip_suffix(':')
                             .map(|chunk| Cow::from(chunk.to_owned()))
-                            .ok_or(format!("Expected field ident but got {chunk:?}"))?,
+                            .ok_or(format!("Expected ident but got {chunk:?}"))?,
                     )))
                 }
             }

@@ -1,8 +1,11 @@
+use std::env;
+
 use crate::tokenizer::Token;
 use binterop::field::Field;
 use binterop::schema::Schema;
 use binterop::types::array::ArrayType;
 use binterop::types::data::DataType;
+use binterop::types::function::{Arg, FunctionType};
 use binterop::types::pointer::PointerType;
 use binterop::types::primitives::INTEGER_PRIMITIVE_NAMES;
 use binterop::types::r#enum::EnumType;
@@ -15,6 +18,7 @@ pub struct Generator {
     currently_defining: Option<Type>,
     should_create_type: bool,
     next_is_repr_type: bool,
+    next_is_fn_return_type: bool,
     current_index: usize,
     current_offset: usize,
     schema: Schema,
@@ -25,6 +29,7 @@ impl Default for Generator {
             currently_defining: None,
             should_create_type: false,
             next_is_repr_type: false,
+            next_is_fn_return_type: false,
             current_index: 0,
             current_offset: 0,
             schema: Schema {
@@ -55,6 +60,12 @@ impl Generator {
                     self.current_index = self.schema.unions.len();
                     self.schema.unions.push(UnionType::default_with_name(ident))
                 }
+                Type::Function => {
+                    self.current_index = self.schema.functions.len();
+                    self.schema
+                        .functions
+                        .push(FunctionType::default_with_name(ident))
+                }
             }
 
             self.should_create_type = false;
@@ -75,6 +86,24 @@ impl Generator {
                     self.schema.unions[self.current_index]
                         .possible_types
                         .push(r#type)
+                }
+                Type::Function => {
+                    let current_fn = &self.schema.functions[self.current_index];
+
+                    let ident_is_type_name = current_fn
+                        .args
+                        .last()
+                        .map(|arg| arg.r#type.is_none())
+                        .unwrap_or(false);
+
+                    if ident_is_type_name {
+                        let arg_type = self.schema.type_data_by_name(ident)?;
+                        self.schema.functions[self.current_index]
+                            .args
+                            .last_mut()
+                            .unwrap()
+                            .r#type = Some(arg_type);
+                    }
                 }
             }
         }
@@ -181,7 +210,15 @@ impl Generator {
             return Err(format!("{name:?} cannot represent enum state since it was not found in integer primitive list!\n\tAvailable integer primitives: {INTEGER_PRIMITIVE_NAMES:?}"));
         }
 
-        let size = if name.ends_with('*') {
+        let size = if self.currently_defining == Some(Type::Function) {
+            if self.next_is_fn_return_type {
+                self.next_is_fn_return_type = false;
+                let r#type = self.schema.type_data_by_name(name)?;
+                self.schema.functions[self.current_index].return_type = Some(r#type);
+            }
+
+            FunctionType::size()
+        } else if name.ends_with('*') {
             self.process_pointer(name)?
         } else if name.starts_with('[') && name.ends_with(']') {
             self.process_array(name)?
@@ -207,6 +244,8 @@ impl Generator {
     }
 
     pub fn feed(&mut self, token: Token) -> Result<(), String> {
+        // eprintln!("{token:?}");
+
         match token {
             Token::Ident(ident) => {
                 if self.next_is_repr_type {
@@ -249,6 +288,13 @@ impl Generator {
                 self.should_create_type = true;
             }
             Token::Type(name) => self.process_type(&name)?,
+            Token::Fn => {
+                self.currently_defining = Some(Type::Function);
+                self.should_create_type = true;
+            }
+            Token::FnReturn => {
+                self.next_is_fn_return_type = true;
+            }
         }
 
         Ok(())

@@ -7,14 +7,18 @@ use serde::{Deserialize, Serialize};
 use union::UnionType;
 use vector::VectorType;
 
+use crate::types::function::FunctionType;
+
 pub mod array;
 pub mod data;
 pub mod r#enum;
+pub mod function;
 pub mod pointer;
 pub mod primitives;
 pub mod union;
 pub mod vector;
 
+#[derive(Copy, Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct TypeData {
     pub index: usize,
     pub r#type: Type,
@@ -43,6 +47,7 @@ pub enum Type {
     Vector,
     Pointer,
     String,
+    Function,
 }
 
 #[derive(Clone, Debug)]
@@ -55,6 +60,7 @@ pub enum WrappedType {
     Union(UnionType),
     Vector(VectorType),
     String,
+    Function(FunctionType),
 }
 impl WrappedType {
     pub fn r#type(&self) -> Type {
@@ -67,6 +73,7 @@ impl WrappedType {
             WrappedType::Union(_) => Type::Union,
             WrappedType::Vector(_) => Type::Vector,
             WrappedType::String => Type::String,
+            WrappedType::Function(_) => Type::Function,
         }
     }
 }

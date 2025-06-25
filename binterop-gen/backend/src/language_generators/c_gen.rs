@@ -1,6 +1,7 @@
 use crate::language_generators::LanguageGenerator;
 use binterop::schema::Schema;
 use binterop::types::data::DataType;
+use binterop::types::function::FunctionType;
 use binterop::types::primitives::PRIMITIVES;
 use binterop::types::r#enum::EnumType;
 use binterop::types::union::UnionType;
@@ -75,8 +76,7 @@ impl CGenerator {
             }
             Type::Enum => {
                 let enum_type = schema.enums.get(type_index).ok_or(format!(
-                    "Variant {} references enum which is not present in schema!",
-                    referer_name
+                    "Variant {referer_name} references enum which is not present in schema!"
                 ))?;
                 self.generate_enum_type(enum_type);
 
@@ -84,10 +84,15 @@ impl CGenerator {
             }
             Type::Union => {
                 let union_type = schema.unions.get(type_index).ok_or(format!(
-                    "Variant {} references union which is not present in schema!",
-                    referer_name
+                    "Variant {referer_name} references union which is not present in schema!"
                 ))?;
                 self.generate_union_type(schema, union_type)
+            }
+            Type::Function => {
+                let function_type = schema.functions.get(type_index).ok_or(format!(
+                    "{referer_name} references function which is not present in schema!",
+                ))?;
+                self.generate_function_type(function_type)
             }
         }
     }
@@ -252,14 +257,24 @@ impl CGenerator {
         }
         union_text.push_str("\t};\n");
 
+        let packing_attribute = if schema.is_packed {
+            " __attribute__((packed))"
+        } else {
+            ""
+        };
+
         self.output.push_str(&format!(
-            "typedef struct __attribute__((packed)) {{\n{repr_field_text}{union_text}}} {};\n\n",
+            "typedef struct{packing_attribute} {{\n{repr_field_text}{union_text}}} {};\n\n",
             union_type.name
         ));
 
         self.generated_type_names.insert(union_type.name.clone());
 
         Ok(())
+    }
+
+    fn generate_function_type(&mut self, _function_type: &FunctionType) -> Result<(), String> {
+        unimplemented!()
     }
 
     fn generate_helpers(&mut self, schema: &Schema) {
