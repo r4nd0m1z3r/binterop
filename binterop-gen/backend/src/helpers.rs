@@ -1,10 +1,10 @@
 use crate::generator::Generator;
-use crate::language_generators::c_gen::CGenerator;
-use crate::language_generators::rust_gen::RustGenerator;
-use crate::language_generators::LanguageGenerator;
+use crate::language_generators::rust::RustLanguageGenerator;
+use crate::language_generators::{LanguageGenerator, LanguageGeneratorState};
 use crate::optimization::{optimize_schema, SchemaOptimizations};
 use crate::tokenizer::Tokenizer;
 use binterop::schema::Schema;
+use std::ffi::OsStr;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -30,19 +30,21 @@ pub fn serialize_schema(schema: &Schema) -> Result<String, serde_json::Error> {
     serde_json::to_string(&schema)
 }
 
-pub fn generate_lang_files(path: &Path, gen_name: &str, schema: &Schema) -> Result<(), String> {
+pub fn generate_lang_files(
+    bintdef_path: &Path,
+    gen_name: &str,
+    schema: &Schema,
+) -> Result<(), String> {
     match gen_name {
-        "c" => {
-            let mut generator = CGenerator::default();
-            generator.feed(schema)?;
-            generator.write(path)?;
-
-            Ok(())
-        }
         "rust" => {
-            let mut generator = RustGenerator::default();
-            generator.feed(schema)?;
-            generator.write(path)?;
+            let mut generator = RustLanguageGenerator::default();
+            let file_name = bintdef_path
+                .file_name()
+                .map(OsStr::to_str)
+                .unwrap()
+                .unwrap();
+            let mut state = LanguageGeneratorState::new(file_name, schema);
+            generator.generate(&mut state, bintdef_path.parent().unwrap())?;
 
             Ok(())
         }

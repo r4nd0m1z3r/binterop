@@ -1,11 +1,9 @@
-use std::env;
-
 use crate::tokenizer::Token;
 use binterop::field::Field;
 use binterop::schema::Schema;
 use binterop::types::array::ArrayType;
 use binterop::types::data::DataType;
-use binterop::types::function::{Arg, FunctionType};
+use binterop::types::function::FunctionType;
 use binterop::types::pointer::PointerType;
 use binterop::types::primitives::INTEGER_PRIMITIVE_NAMES;
 use binterop::types::r#enum::EnumType;
