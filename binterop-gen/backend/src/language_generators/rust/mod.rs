@@ -44,6 +44,7 @@ impl RustLanguageGenerator {
         &mut state.output_files[0]
     }
 }
+
 impl LanguageGenerator for RustLanguageGenerator {
     fn prepare(&mut self, state: &mut LanguageGeneratorState) -> Result<(), String> {
         let mut output_file_name = PathBuf::from(state.file_name);
@@ -176,8 +177,10 @@ impl LanguageGenerator for RustLanguageGenerator {
         function_type: &binterop::types::function::FunctionType,
     ) -> Result<(), String> {
         for arg in &function_type.args {
-            if !state.is_generated(&arg.name) {
-                let type_data = arg.r#type.unwrap();
+            let type_data = arg.r#type.unwrap();
+            let type_name = state.schema.type_name(type_data.r#type, type_data.index);
+
+            if !state.is_generated(&type_name) {
                 self.generate_from_type_and_index(state, type_data.r#type, type_data.index)?;
             }
         }
@@ -187,9 +190,11 @@ impl LanguageGenerator for RustLanguageGenerator {
             .iter()
             .map(|arg| {
                 let type_data = arg.r#type.unwrap();
-                (type_data.r#type, type_data.index)
+                let type_name =
+                    Self::rust_type_name(type_data.r#type, type_data.index, state.schema);
+
+                format!("{}: {type_name}", arg.name)
             })
-            .map(|(r#type, type_index)| Self::rust_type_name(r#type, type_index, state.schema))
             .collect::<Vec<_>>()
             .join(", ");
         let return_type_data = function_type.return_type.unwrap();

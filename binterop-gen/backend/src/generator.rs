@@ -1,9 +1,10 @@
 use crate::tokenizer::Token;
+use crate::GENERATOR_DEBUG;
 use binterop::field::Field;
 use binterop::schema::Schema;
 use binterop::types::array::ArrayType;
 use binterop::types::data::DataType;
-use binterop::types::function::FunctionType;
+use binterop::types::function::{Arg, FunctionType};
 use binterop::types::pointer::PointerType;
 use binterop::types::primitives::INTEGER_PRIMITIVE_NAMES;
 use binterop::types::r#enum::EnumType;
@@ -86,22 +87,9 @@ impl Generator {
                         .push(r#type)
                 }
                 Type::Function => {
-                    let current_fn = &self.schema.functions[self.current_index];
+                    let current_fn = &mut self.schema.functions[self.current_index];
 
-                    let ident_is_type_name = current_fn
-                        .args
-                        .last()
-                        .map(|arg| arg.r#type.is_none())
-                        .unwrap_or(false);
-
-                    if ident_is_type_name {
-                        let arg_type = self.schema.type_data_by_name(ident)?;
-                        self.schema.functions[self.current_index]
-                            .args
-                            .last_mut()
-                            .unwrap()
-                            .r#type = Some(arg_type);
-                    }
+                    current_fn.args.push(Arg::new(ident.to_string(), None));
                 }
             }
         }
@@ -209,10 +197,19 @@ impl Generator {
         }
 
         let size = if self.currently_defining == Some(Type::Function) {
+            let r#type = self.schema.type_data_by_name(name)?;
+
             if self.next_is_fn_return_type {
                 self.next_is_fn_return_type = false;
-                let r#type = self.schema.type_data_by_name(name)?;
+
                 self.schema.functions[self.current_index].return_type = Some(r#type);
+            } else {
+                let arg_type_data = self.schema.type_data_by_name(name)?;
+                let current_fn = &mut self.schema.functions[self.current_index];
+
+                if let Some(arg) = current_fn.args.last_mut() {
+                    arg.r#type = Some(arg_type_data);
+                }
             }
 
             FunctionType::size()
@@ -242,7 +239,9 @@ impl Generator {
     }
 
     pub fn feed(&mut self, token: Token) -> Result<(), String> {
-        // eprintln!("{token:?}");
+        if *GENERATOR_DEBUG {
+            eprintln!("{token:?}");
+        }
 
         match token {
             Token::Ident(ident) => {

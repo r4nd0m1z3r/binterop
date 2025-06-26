@@ -47,7 +47,15 @@ impl<'a> LanguageGeneratorState<'a> {
 
 impl<'a> LanguageGeneratorState<'a> {
     pub fn is_generated(&self, name: &str) -> bool {
-        self.generated_type_names.contains(name)
+        self.schema
+            .type_data_by_name(name)
+            .map(|type_data| match type_data.r#type {
+                Type::Primitive | Type::Array | Type::Vector | Type::Pointer | Type::String => true,
+                Type::Data | Type::Enum | Type::Union | Type::Function => {
+                    self.generated_type_names.contains(name)
+                }
+            })
+            .unwrap_or(false)
     }
 
     pub fn mark_generated(&mut self, name: &str) {
@@ -82,16 +90,19 @@ pub trait LanguageGenerator {
         state: &mut LanguageGeneratorState,
         data_type: &DataType,
     ) -> Result<(), String>;
+
     fn generate_enum_type(
         &mut self,
         state: &mut LanguageGeneratorState,
         enum_type: &EnumType,
     ) -> Result<(), String>;
+
     fn generate_union_type(
         &mut self,
         state: &mut LanguageGeneratorState,
         union_type: &UnionType,
     ) -> Result<(), String>;
+
     fn generate_function_type(
         &mut self,
         state: &mut LanguageGeneratorState,

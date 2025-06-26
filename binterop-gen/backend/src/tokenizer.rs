@@ -3,6 +3,8 @@ use std::collections::VecDeque;
 use std::path::PathBuf;
 use std::{env, fs};
 
+use crate::GENERATOR_DEBUG;
+
 #[derive(Clone, Debug)]
 pub enum Token<'a> {
     Ident(Cow<'a, str>),
@@ -32,7 +34,9 @@ impl<'a> Tokenizer<'a> {
     }
 
     fn match_chunk(&mut self, chunk: Cow<'a, str>) -> Result<Option<Token>, String> {
-        // eprint!("{chunk:?} -> ");
+        if *GENERATOR_DEBUG {
+            eprint!("{chunk:?} -> ");
+        }
 
         match chunk.borrow() {
             "include" => {
