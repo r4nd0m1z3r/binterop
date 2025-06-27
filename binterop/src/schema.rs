@@ -193,14 +193,99 @@ impl Schema {
         }
     }
 
+    pub fn type_data(&self, index: usize, r#type: Type) -> Result<TypeData, String> {
+        match r#type {
+            Type::Primitive => {
+                let primitive = PRIMITIVES
+                    .index(index)
+                    .ok_or(format!("No primitive with index {index}"))?;
+
+                Ok(TypeData::new(index, r#type, primitive.size, true))
+            }
+            Type::Data => {
+                let data_type = self
+                    .types
+                    .get(index)
+                    .ok_or(format!("No data type with index {index}"))?;
+
+                Ok(TypeData::new(
+                    index,
+                    r#type,
+                    data_type.size(self),
+                    data_type.is_copy(self),
+                ))
+            }
+            Type::Enum => {
+                if self.enums.get(index).is_none() {
+                    Err(format!("No enum with index {index}"))
+                } else {
+                    Ok(TypeData::new(index, r#type, EnumType::size(), true))
+                }
+            }
+            Type::Union => {
+                let union_type = self
+                    .types
+                    .get(index)
+                    .ok_or(format!("No union type with index {index}"))?;
+
+                Ok(TypeData::new(
+                    index,
+                    r#type,
+                    union_type.size(self),
+                    union_type.is_copy(self),
+                ))
+            }
+            Type::Array => {
+                let array_type = self
+                    .types
+                    .get(index)
+                    .ok_or(format!("No array type with index {index}"))?;
+
+                Ok(TypeData::new(
+                    index,
+                    r#type,
+                    array_type.size(self),
+                    array_type.is_copy(self),
+                ))
+            }
+            Type::Vector => {
+                let vector_type = self
+                    .types
+                    .get(index)
+                    .ok_or(format!("No vector type with index {index}"))?;
+
+                Ok(TypeData::new(
+                    index,
+                    r#type,
+                    vector_type.size(self),
+                    vector_type.is_copy(self),
+                ))
+            }
+            Type::Pointer => {
+                if self.pointers.get(index).is_none() {
+                    Err(format!("No pointer type with index {index}"))
+                } else {
+                    Ok(TypeData::new(index, r#type, PointerType::size(), true))
+                }
+            }
+            Type::String => Ok(TypeData::new(0, r#type, VectorType::size(), false)),
+            Type::Function => {
+                if self.functions.get(index).is_none() {
+                    Err(format!("No function type with index {index}"))
+                } else {
+                    Ok(TypeData::new(index, r#type, FunctionType::size(), true))
+                }
+            }
+        }
+    }
+
     pub fn type_data_by_name(&self, name: &str) -> Result<TypeData, String> {
         if name == "String" {
             return Ok(TypeData::new(0, Type::String, VectorType::size(), false));
         }
 
         if let Some(index) = PRIMITIVES.index_of(name) {
-            let type_size = PRIMITIVES[name].size;
-            return Ok(TypeData::new(index, Type::Primitive, type_size, true));
+            return self.type_data(index, Type::Primitive);
         }
 
         if let Some((index, _)) = self
@@ -209,9 +294,7 @@ impl Schema {
             .enumerate()
             .find(|(_, data_type)| data_type.name == name)
         {
-            let type_size = self.type_size(Type::Data, index).unwrap();
-            let is_copy = self.is_copy(Type::Data, index).unwrap();
-            return Ok(TypeData::new(index, Type::Data, type_size, is_copy));
+            return self.type_data(index, Type::Data);
         }
 
         if let Some(index) = self
@@ -221,8 +304,7 @@ impl Schema {
             .find(|(_, enum_type)| enum_type.name == *name)
             .map(|(index, _)| index)
         {
-            let type_size = self.type_size(Type::Enum, index).unwrap();
-            return Ok(TypeData::new(index, Type::Enum, type_size, true));
+            return self.type_data(index, Type::Enum);
         }
 
         if let Some(index) = self
@@ -232,9 +314,7 @@ impl Schema {
             .find(|(_, union_type)| union_type.name == *name)
             .map(|(index, _)| index)
         {
-            let type_size = self.type_size(Type::Union, index).unwrap();
-            let is_copy = self.is_copy(Type::Union, index).unwrap();
-            return Ok(TypeData::new(index, Type::Union, type_size, is_copy));
+            return self.type_data(index, Type::Union);
         }
 
         if let Some(index) = self
@@ -244,9 +324,7 @@ impl Schema {
             .find(|(_, function_type)| function_type.name == *name)
             .map(|(index, _)| index)
         {
-            let type_size = self.type_size(Type::Function, index).unwrap();
-            let is_copy = self.is_copy(Type::Function, index).unwrap();
-            return Ok(TypeData::new(index, Type::Function, type_size, is_copy));
+            return self.type_data(index, Type::Function);
         }
 
         let available_type_names = self
