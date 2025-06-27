@@ -19,20 +19,29 @@ impl RustLanguageGenerator {
         match r#type {
             Type::Array => {
                 let array_type = schema.arrays[type_index];
-                let inner_type_name =
-                    schema.type_name(array_type.inner_type, array_type.inner_type_index);
+                let inner_type_name = Self::rust_type_name(
+                    array_type.inner_type,
+                    array_type.inner_type_index,
+                    schema,
+                );
                 format!("[{inner_type_name}; {}]", array_type.len)
             }
             Type::Vector => {
                 let heap_array_type = schema.vectors[type_index];
-                let inner_type_name =
-                    schema.type_name(heap_array_type.inner_type, heap_array_type.inner_type_index);
+                let inner_type_name = Self::rust_type_name(
+                    heap_array_type.inner_type,
+                    heap_array_type.inner_type_index,
+                    schema,
+                );
                 format!("helpers::Vector<{inner_type_name}>")
             }
             Type::Pointer => {
                 let pointer_type = schema.pointers[type_index];
-                let inner_type_name =
-                    schema.type_name(pointer_type.inner_type, pointer_type.inner_type_index);
+                let inner_type_name = Self::rust_type_name(
+                    pointer_type.inner_type,
+                    pointer_type.inner_type_index,
+                    schema,
+                );
 
                 format!("*mut {inner_type_name}")
             }
@@ -50,7 +59,8 @@ impl LanguageGenerator for RustLanguageGenerator {
         let mut output_file_name = PathBuf::from(state.file_name);
         output_file_name.set_extension("rs");
 
-        let output_file = SourceFile::new(output_file_name);
+        let output_file =
+            SourceFile::new(output_file_name).contents("mod helpers;\n\n".to_string());
         state.output_files.push(output_file);
 
         let helpers_file =
@@ -65,11 +75,12 @@ impl LanguageGenerator for RustLanguageGenerator {
         state: &mut LanguageGeneratorState,
         data_type: &DataType,
     ) -> Result<(), String> {
-        let mut fields_text = "\n".to_string();
+        let mut fields_text = String::new();
 
         for field in &data_type.fields {
-            let type_name = state.schema.type_name(field.r#type, field.type_index);
-            if !state.is_generated(&type_name) {
+            let type_data = state.schema.type_data(field.type_index, field.r#type)?;
+
+            if !state.is_generated(&type_data) {
                 self.generate_from_type_and_index(state, field.r#type, field.type_index)?;
             }
 
@@ -82,12 +93,7 @@ impl LanguageGenerator for RustLanguageGenerator {
         let is_copy = data_type.is_copy(state.schema);
         let output = &mut Self::output_file_mut(state).content;
         output.push_str(&format!(
-            "#[repr(C)]
-                    #[derive({}Clone, Debug)]
-                    pub struct {}
-                    {{{fields_text}}}
-
-                    ",
+            "#[repr(C)]\n#[derive({}Clone, Debug)]\npub struct {} {{\n{fields_text}}}\n\n",
             if is_copy { "Copy, " } else { "" },
             data_type.name
         ));
@@ -108,12 +114,7 @@ impl LanguageGenerator for RustLanguageGenerator {
 
         let output = &mut Self::output_file_mut(state).content;
         output.push_str(&format!(
-            "#[repr(C)]
-                    #[derive(Copy, Clone, Debug)]
-                    pub enum {}
-                    {{{variants_text}}}
-
-                    ",
+            "#[repr(C)]\n#[derive(Copy, Clone, Debug)]\npub enum {} {{{variants_text}}}\n\n",
             enum_type.name
         ));
 
@@ -148,23 +149,10 @@ impl LanguageGenerator for RustLanguageGenerator {
         let output = &mut Self::output_file_mut(state).content;
         let union_type_name = &union_type.name;
         output.push_str(&format!(
-            "
-                #[repr(C)]
-                pub union {union_type_name}Union {{
-                    {union_fields_text}
-                }}
-                "
+            "#[repr(C)]\npub union {union_type_name}Union {{\n{union_fields_text}}}\n\n",
         ));
 
-        output.push_str(&format!(
-            "
-                #[repr(C)]
-                #[derive({}Clone, Debug)]
-                pub struct {union_type_name} {{
-                    pub variant: {union_type_name}Variant,
-                    pub data: {union_type_name}Union
-                }}
-                ",
+        output.push_str(&format!("#[repr(C)]\n#[derive({}Clone, Debug)]\npub struct {union_type_name} {{\n\tpub variant: {union_type_name}Variant,\n\tpub data: {union_type_name}Union\n}}\n\n",
             if is_copy { "Copy, " } else { "" }
         ));
 
@@ -178,9 +166,8 @@ impl LanguageGenerator for RustLanguageGenerator {
     ) -> Result<(), String> {
         for arg in &function_type.args {
             let type_data = arg.r#type.unwrap();
-            let type_name = state.schema.type_name(type_data.r#type, type_data.index);
 
-            if !state.is_generated(&type_name) {
+            if !state.is_generated(&type_data) {
                 self.generate_from_type_and_index(state, type_data.r#type, type_data.index)?;
             }
         }
@@ -197,16 +184,24 @@ impl LanguageGenerator for RustLanguageGenerator {
             })
             .collect::<Vec<_>>()
             .join(", ");
-        let return_type_data = function_type.return_type.unwrap();
-        let return_type_text = Self::rust_type_name(
-            return_type_data.r#type,
-            return_type_data.index,
-            state.schema,
-        );
+
+        let return_type_text = function_type
+            .return_type
+            .map(|return_type_data| {
+                format!(
+                    " -> {}",
+                    Self::rust_type_name(
+                        return_type_data.r#type,
+                        return_type_data.index,
+                        state.schema,
+                    )
+                )
+            })
+            .unwrap_or_default();
 
         let output = &mut Self::output_file_mut(state).content;
         output.push_str(&format!(
-            "\ntype {} = extern \"C\" fn({args_text}) -> {return_type_text};",
+            "type {} = extern \"C\" fn({args_text}){return_type_text};\n",
             function_type.name,
         ));
 

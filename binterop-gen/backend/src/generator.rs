@@ -188,6 +188,26 @@ impl Generator {
         Ok(size)
     }
 
+    fn process_function(&mut self, name: &str) -> Result<usize, String> {
+        let r#type = self.schema.type_data_by_name(name)?;
+
+        if self.next_is_fn_return_type {
+            self.next_is_fn_return_type = false;
+            self.currently_defining = None;
+
+            self.schema.functions[self.current_index].return_type = Some(r#type);
+        } else {
+            let arg_type_data = self.schema.type_data_by_name(name)?;
+            let current_fn = &mut self.schema.functions[self.current_index];
+
+            if let Some(arg) = current_fn.args.last_mut() {
+                arg.r#type = Some(arg_type_data);
+            }
+        }
+
+        Ok(FunctionType::size())
+    }
+
     fn process_type(&mut self, name: &str) -> Result<(), String> {
         if (self.currently_defining == Some(Type::Enum)
             || self.currently_defining == Some(Type::Union))
@@ -197,22 +217,7 @@ impl Generator {
         }
 
         let size = if self.currently_defining == Some(Type::Function) {
-            let r#type = self.schema.type_data_by_name(name)?;
-
-            if self.next_is_fn_return_type {
-                self.next_is_fn_return_type = false;
-
-                self.schema.functions[self.current_index].return_type = Some(r#type);
-            } else {
-                let arg_type_data = self.schema.type_data_by_name(name)?;
-                let current_fn = &mut self.schema.functions[self.current_index];
-
-                if let Some(arg) = current_fn.args.last_mut() {
-                    arg.r#type = Some(arg_type_data);
-                }
-            }
-
-            FunctionType::size()
+            self.process_function(name)?
         } else if name.ends_with('*') {
             self.process_pointer(name)?
         } else if name.starts_with('[') && name.ends_with(']') {

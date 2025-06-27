@@ -1,1 +1,7 @@
+include struct.bintdef
+
 fn add(a: i32, b: i32) -> f64
+
+fn pass_by_ptr(ptr: SomeOtherType*)
+
+fn vec_sum(vec: <i32>) -> i64

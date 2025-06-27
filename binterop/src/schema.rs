@@ -237,7 +237,7 @@ impl Schema {
             }
             Type::Array => {
                 let array_type = self
-                    .types
+                    .arrays
                     .get(index)
                     .ok_or(format!("No array type with index {index}"))?;
 
@@ -245,20 +245,20 @@ impl Schema {
                     index,
                     r#type,
                     array_type.size(self),
-                    array_type.is_copy(self),
+                    self.is_copy(array_type.inner_type, array_type.inner_type_index)
+                        .unwrap(),
                 ))
             }
             Type::Vector => {
-                let vector_type = self
-                    .types
+                self.vectors
                     .get(index)
                     .ok_or(format!("No vector type with index {index}"))?;
 
                 Ok(TypeData::new(
                     index,
                     r#type,
-                    vector_type.size(self),
-                    vector_type.is_copy(self),
+                    VectorType::size(),
+                    VectorType::is_copy(),
                 ))
             }
             Type::Pointer => {
@@ -279,7 +279,58 @@ impl Schema {
         }
     }
 
-    pub fn type_data_by_name(&self, name: &str) -> Result<TypeData, String> {
+    pub fn type_data_by_name(&mut self, name: &str) -> Result<TypeData, String> {
+        if name.starts_with('[') && name.ends_with(']') {
+            let looked_up_array = ArrayType::parse(name, self)?;
+
+            let array_index = self
+                .arrays
+                .iter()
+                .position(|array| array == &looked_up_array)
+                .unwrap_or_else(|| {
+                    self.arrays.push(looked_up_array);
+                    self.arrays.len() - 1
+                });
+
+            return self.type_data(array_index, Type::Array);
+        }
+
+        if name.starts_with('<') && name.ends_with('>') {
+            let looked_up_vec = VectorType::parse(name, self)?;
+
+            let vector_index = self
+                .vectors
+                .iter()
+                .position(|vec| vec == &looked_up_vec)
+                .unwrap_or_else(|| {
+                    self.vectors.push(looked_up_vec);
+                    self.vectors.len() - 1
+                });
+
+            return self.type_data(vector_index, Type::Vector);
+        }
+
+        if name.ends_with('*') {
+            let inner_type_name = &name[..name.len() - 1];
+            let inner_type_data = self.type_data_by_name(inner_type_name)?;
+            let pointer_type_index = self
+                .pointers
+                .iter()
+                .position(|pointer| {
+                    pointer.inner_type == inner_type_data.r#type
+                        && pointer.inner_type_index == inner_type_data.index
+                })
+                .unwrap_or_else(|| {
+                    let pointer_type =
+                        PointerType::new(inner_type_data.r#type, inner_type_data.index);
+
+                    self.pointers.push(pointer_type);
+                    self.pointers.len() - 1
+                });
+
+            return self.type_data(pointer_type_index, Type::Pointer);
+        }
+
         if name == "String" {
             return Ok(TypeData::new(0, Type::String, VectorType::size(), false));
         }

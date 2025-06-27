@@ -1,8 +1,11 @@
 use binterop::{
     schema::Schema,
-    types::{data::DataType, function::FunctionType, r#enum::EnumType, union::UnionType, Type},
+    types::{
+        data::DataType, function::FunctionType, r#enum::EnumType, union::UnionType, Type, TypeData,
+    },
 };
 use std::{
+    borrow::Borrow,
     collections::HashSet,
     fs,
     path::{Path, PathBuf},
@@ -46,16 +49,16 @@ impl<'a> LanguageGeneratorState<'a> {
 }
 
 impl<'a> LanguageGeneratorState<'a> {
-    pub fn is_generated(&self, name: &str) -> bool {
-        self.schema
-            .type_data_by_name(name)
-            .map(|type_data| match type_data.r#type {
-                Type::Primitive | Type::Array | Type::Vector | Type::Pointer | Type::String => true,
-                Type::Data | Type::Enum | Type::Union | Type::Function => {
-                    self.generated_type_names.contains(name)
-                }
-            })
-            .unwrap_or(false)
+    pub fn is_generated(&self, type_data: &TypeData) -> bool {
+        match type_data.r#type {
+            Type::Primitive | Type::Array | Type::Vector | Type::Pointer | Type::String => true,
+            Type::Data | Type::Enum | Type::Union | Type::Function => {
+                let type_name = self.schema.type_name(type_data.r#type, type_data.index);
+
+                self.generated_type_names
+                    .contains(Borrow::<str>::borrow(&type_name))
+            }
+        }
     }
 
     pub fn mark_generated(&mut self, name: &str) {
@@ -81,7 +84,7 @@ pub trait LanguageGenerator {
             Type::Function => {
                 self.generate_function_type(state, &state.schema.functions[type_index])
             }
-            wrapped_type => Err(format!("Generator should not operate on {wrapped_type:?}")),
+            wrapped_type => panic!("Generator should not operate on {wrapped_type:?}"),
         }
     }
 
@@ -116,23 +119,31 @@ pub trait LanguageGenerator {
     ) -> Result<(), String> {
         self.prepare(state)?;
 
-        for data_type in &state.schema.types {
-            if !state.is_generated(&data_type.name) {
+        for (index, data_type) in state.schema.types.iter().enumerate() {
+            let type_data = state.schema.type_data(index, Type::Data)?;
+
+            if !state.is_generated(&type_data) {
                 self.generate_data_type(state, data_type)?;
             }
         }
-        for enum_type in &state.schema.enums {
-            if !state.is_generated(&enum_type.name) {
+        for (index, enum_type) in state.schema.enums.iter().enumerate() {
+            let type_data = state.schema.type_data(index, Type::Enum)?;
+
+            if !state.is_generated(&type_data) {
                 self.generate_enum_type(state, enum_type)?;
             }
         }
-        for union_type in &state.schema.unions {
-            if !state.is_generated(&union_type.name) {
+        for (index, union_type) in state.schema.unions.iter().enumerate() {
+            let type_data = state.schema.type_data(index, Type::Union)?;
+
+            if !state.is_generated(&type_data) {
                 self.generate_union_type(state, union_type)?;
             }
         }
-        for function_type in &state.schema.functions {
-            if !state.is_generated(&function_type.name) {
+        for (index, function_type) in state.schema.functions.iter().enumerate() {
+            let type_data = state.schema.type_data(index, Type::Function)?;
+
+            if !state.is_generated(&type_data) {
                 self.generate_function_type(state, function_type)?;
             }
         }
