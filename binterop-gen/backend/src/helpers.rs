@@ -1,4 +1,5 @@
 use crate::generator::Generator;
+use crate::language_generators::nim::NimLanguageGenerator;
 use crate::language_generators::rust::RustLanguageGenerator;
 use crate::language_generators::{LanguageGenerator, LanguageGeneratorState};
 use crate::optimization::{optimize_schema, SchemaOptimizations};
@@ -35,15 +36,22 @@ pub fn generate_lang_files(
     gen_name: &str,
     schema: &Schema,
 ) -> Result<(), String> {
+    let file_name = bintdef_path
+        .file_name()
+        .map(OsStr::to_str)
+        .unwrap()
+        .unwrap();
+    let mut state = LanguageGeneratorState::new(file_name, schema);
+
     match gen_name {
         "rust" => {
             let mut generator = RustLanguageGenerator::default();
-            let file_name = bintdef_path
-                .file_name()
-                .map(OsStr::to_str)
-                .unwrap()
-                .unwrap();
-            let mut state = LanguageGeneratorState::new(file_name, schema);
+            generator.generate(&mut state, bintdef_path.parent().unwrap())?;
+
+            Ok(())
+        }
+        "nim" => {
+            let mut generator = NimLanguageGenerator::default();
             generator.generate(&mut state, bintdef_path.parent().unwrap())?;
 
             Ok(())

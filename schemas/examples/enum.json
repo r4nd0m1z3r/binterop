@@ -1,1 +1,1 @@
-{"is_packed":false,"types":[],"enums":[{"name":"Color","variants":["Red","Green","Blue"]}],"unions":[],"arrays":[],"pointers":[],"vectors":[]}
+{"is_packed":false,"types":[],"enums":[{"name":"Color","variants":["Red","Green","Blue"]}],"unions":[],"arrays":[],"pointers":[],"vectors":[],"functions":[]}

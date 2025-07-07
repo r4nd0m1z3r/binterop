@@ -1,24 +1,21 @@
+mod helpers;
 
-            #[path = "helpers.rs"]
-            pub mod helpers;#[repr(C)]
-            #[derive(Copy, Clone, Debug)]
-            pub struct SomeOtherType 
-            {
+#[repr(C)]
+#[derive(Copy, Clone, Debug)]
+pub struct SomeOtherType {
 	pub a: f64,
 }
-            
-            #[repr(C)]
-            #[derive(Copy, Clone, Debug)]
-            pub struct Test 
-            {
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug)]
+pub struct Test {
 	pub b: u32,
 	pub a: [u8; 69],
 }
-            
-            #[repr(C)]
-            #[derive(Copy, Clone, Debug)]
-            pub struct SomeStruct 
-            {
+
+#[repr(C)]
+#[derive(Clone, Debug)]
+pub struct SomeStruct {
 	pub some_bool: bool,
 	pub some_uint: u16,
 	pub some_float: f32,
@@ -27,7 +24,7 @@
 	pub some_other_type: SomeOtherType,
 	pub some_other_type_array: [SomeOtherType; 3],
 	pub some_other_type_vector: helpers::Vector<SomeOtherType>,
+	pub some_string: String,
 	pub some_float_array: [f32; 10],
 }
-            
-            
+

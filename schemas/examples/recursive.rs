@@ -1,9 +1,9 @@
+mod helpers;
 
-#[path = "helpers.rs"]
-pub mod helpers;
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
 pub struct Recursive {
-    pub recursive: bool,
-    pub depth: u32,
+	pub recursive: bool,
+	pub depth: u32,
 }
+

@@ -11,6 +11,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+pub mod nim;
 pub mod rust;
 
 pub struct SourceFile {
