@@ -39,6 +39,11 @@ impl<T> From<Vec<T>> for Vector<T> {
         }
     }
 }
+impl<T> Into<Vec<T>> for Vector<T> {
+    fn into(self) -> Vec<T> {
+        unsafe { Vec::from_raw_parts(self.ptr, self.len as usize, self.capacity as usize) }
+    }
+}
 impl<T> Vector<T> {
     pub fn new() -> Self {
         let mut vec = vec![];
@@ -92,5 +97,13 @@ impl<T> Vector<T> {
         *self = vec.into();
 
         elem
+    }
+}
+
+#[repr(C)]
+pub struct String(Vector<u8>);
+impl Into<std::string::String> for String {
+    fn into(self) -> std::string::String {
+        unsafe { std::string::String::from_utf8_unchecked(self.0.into()) }
     }
 }
