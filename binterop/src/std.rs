@@ -1,5 +1,5 @@
 use core::slice;
-use std::string::String as RustString;
+use std::string::{FromUtf8Error, String as RustString};
 
 use crate::{
     schema::Schema,
@@ -48,6 +48,11 @@ impl<T> From<Vec<T>> for Vector<T> {
         }
     }
 }
+impl<T> Into<Vec<T>> for Vector<T> {
+    fn into(self) -> Vec<T> {
+        unsafe { Vec::from_raw_parts(self.ptr, self.length as usize, self.capacity as usize) }
+    }
+}
 
 #[repr(C)]
 pub struct String(Vector<u8>);
@@ -64,5 +69,13 @@ impl String {
 impl From<RustString> for String {
     fn from(value: RustString) -> Self {
         Self(value.into_bytes().into())
+    }
+}
+impl TryInto<RustString> for String {
+    type Error = FromUtf8Error;
+
+    fn try_into(self) -> Result<RustString, Self::Error> {
+        let vector: Vec<u8> = self.0.into();
+        RustString::from_utf8(vector)
     }
 }
