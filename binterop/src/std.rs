@@ -1,5 +1,5 @@
 use core::slice;
-use std::string::{FromUtf8Error, String as RustString};
+use std::{fmt::Debug, mem::ManuallyDrop, string::FromUtf8Error};
 
 use crate::{
     schema::Schema,
@@ -26,25 +26,33 @@ impl<T: Binterop> Binterop for Vector<T> {
         WrappedType::Vector(vector_type)
     }
 }
-impl<T> Vector<T> {
-    pub fn len(&self) -> usize {
-        self.length as usize
+impl<T: Debug> Debug for Vector<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_list().entries(self.as_slice()).finish()
     }
+}
+impl<T: Clone> Clone for Vector<T> {
+    fn clone(&self) -> Self {
+        let mut new = Self::with_capacity(self.capacity);
 
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
+        let new_slice = new.as_mut_slice();
+        new_slice.clone_from_slice(self.as_slice());
+        new.length = self.length;
 
-    pub fn capacity(&self) -> usize {
-        self.capacity as usize
+        new
     }
 }
 impl<T> From<Vec<T>> for Vector<T> {
-    fn from(mut value: Vec<T>) -> Self {
+    fn from(value: Vec<T>) -> Self {
+        let (ptr, len, capacity) = {
+            let mut vec = ManuallyDrop::new(value);
+            (vec.as_mut_ptr(), vec.len(), vec.capacity())
+        };
+
         Self {
-            ptr: value.as_mut_ptr(),
-            length: value.len() as u64,
-            capacity: value.capacity() as u64,
+            ptr,
+            length: len as u64,
+            capacity: capacity as u64,
         }
     }
 }
@@ -53,29 +61,85 @@ impl<T> Into<Vec<T>> for Vector<T> {
         unsafe { Vec::from_raw_parts(self.ptr, self.length as usize, self.capacity as usize) }
     }
 }
+impl<T> Vector<T> {
+    pub fn new() -> Self {
+        let mut vec = vec![];
+
+        Self {
+            ptr: vec.as_mut_ptr(),
+            length: vec.len() as u64,
+            capacity: vec.capacity() as u64,
+        }
+    }
+
+    pub fn with_capacity(capacity: u64) -> Self {
+        let mut vec = Vec::with_capacity(capacity as usize);
+
+        Self {
+            ptr: vec.as_mut_ptr(),
+            length: vec.len() as u64,
+            capacity: vec.capacity() as u64,
+        }
+    }
+
+    pub fn as_slice(&self) -> &[T] {
+        unsafe { std::slice::from_raw_parts(self.ptr, self.length as usize) }
+    }
+
+    pub fn as_mut_slice(&mut self) -> &mut [T] {
+        unsafe { std::slice::from_raw_parts_mut(self.ptr, self.length as usize) }
+    }
+
+    pub fn reserve(&mut self, additional: u64) {
+        let mut vec =
+            unsafe { Vec::from_raw_parts(self.ptr, self.length as usize, self.capacity as usize) };
+        vec.reserve(additional as usize);
+
+        *self = vec.into();
+    }
+
+    pub fn push(&mut self, elem: T) {
+        let mut vec =
+            unsafe { Vec::from_raw_parts(self.ptr, self.length as usize, self.capacity as usize) };
+        vec.push(elem);
+
+        *self = vec.into();
+    }
+
+    pub fn pop(&mut self) -> Option<T> {
+        let mut vec =
+            unsafe { Vec::from_raw_parts(self.ptr, self.length as usize, self.capacity as usize) };
+        let elem = vec.pop();
+
+        *self = vec.into();
+
+        elem
+    }
+}
 
 #[repr(C)]
 pub struct String(Vector<u8>);
+impl String {
+    pub fn as_str(&self) -> &str {
+        unsafe { std::str::from_utf8_unchecked(self.0.as_slice()) }
+    }
+}
 impl Binterop for String {
     fn binterop_type(_: &mut Schema) -> WrappedType {
         WrappedType::String
     }
 }
-impl String {
-    pub fn as_bytes(&self) -> &[u8] {
-        unsafe { slice::from_raw_parts(self.0.ptr, self.0.length as usize) }
-    }
-}
-impl From<RustString> for String {
-    fn from(value: RustString) -> Self {
-        Self(value.into_bytes().into())
-    }
-}
-impl TryInto<RustString> for String {
-    type Error = FromUtf8Error;
+impl Into<std::string::String> for String {
+    fn into(self) -> std::string::String {
+        let vec: Vec<u8> = self.0.into();
 
-    fn try_into(self) -> Result<RustString, Self::Error> {
-        let vector: Vec<u8> = self.0.into();
-        RustString::from_utf8(vector)
+        unsafe { std::string::String::from_utf8_unchecked(vec) }
+    }
+}
+impl From<std::string::String> for String {
+    fn from(value: std::string::String) -> Self {
+        let vec = value.into_bytes();
+
+        Self(vec.into())
     }
 }
