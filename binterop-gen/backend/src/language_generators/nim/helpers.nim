@@ -8,7 +8,7 @@ type Option*[T] = object
     none*: None
 
 type Vector*[T] = object
-  pointer*: UncheckedArray[T]
+  pointer*: ptr UncheckedArray[T]
   len*: uint64
   capacity*: uint64
 
