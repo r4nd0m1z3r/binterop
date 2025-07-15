@@ -1,5 +1,4 @@
-use core::slice;
-use std::{fmt::Debug, mem::ManuallyDrop, string::FromUtf8Error};
+use std::{fmt::Debug, mem::ManuallyDrop, str::Utf8Error};
 
 use crate::{
     schema::Schema,
@@ -72,6 +71,10 @@ impl<T> Vector<T> {
         }
     }
 
+    pub unsafe fn offset(&mut self, offset: isize) {
+        self.ptr = self.ptr.offset(offset);
+    }
+
     pub fn with_capacity(capacity: u64) -> Self {
         let mut vec = Vec::with_capacity(capacity as usize);
 
@@ -118,10 +121,10 @@ impl<T> Vector<T> {
 }
 
 #[repr(C)]
-pub struct String(Vector<u8>);
+pub struct String(pub Vector<u8>);
 impl String {
-    pub fn as_str(&self) -> &str {
-        unsafe { std::str::from_utf8_unchecked(self.0.as_slice()) }
+    pub fn as_str(&self) -> Result<&str, Utf8Error> {
+        std::str::from_utf8(self.0.as_slice())
     }
 }
 impl Binterop for String {
@@ -133,7 +136,7 @@ impl Into<std::string::String> for String {
     fn into(self) -> std::string::String {
         let vec: Vec<u8> = self.0.into();
 
-        unsafe { std::string::String::from_utf8_unchecked(vec) }
+        std::string::String::from_utf8(vec).unwrap()
     }
 }
 impl From<std::string::String> for String {

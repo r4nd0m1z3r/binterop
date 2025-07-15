@@ -63,10 +63,6 @@ impl LanguageGenerator for RustLanguageGenerator {
             SourceFile::new(output_file_name).contents("mod helpers;\n\n".to_string());
         state.output_files.push(output_file);
 
-        let helpers_file =
-            SourceFile::new("helpers.rs").contents(include_str!("helpers.rs").to_string());
-        state.output_files.push(helpers_file);
-
         Ok(())
     }
 

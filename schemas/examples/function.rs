@@ -29,5 +29,5 @@ pub struct SomeStruct {
 }
 
 type add = extern "C" fn(a: i32, b: i32) -> f64;
-type pass_by_ptr = extern "C" fn(ptr: *mut SomeOtherType);
+type pass_by_pointer = extern "C" fn(pointer: *mut SomeOtherType);
 type vec_sum = extern "C" fn(vec: helpers::Vector<i32>) -> i64;
