@@ -72,7 +72,7 @@ impl<T> Vector<T> {
     }
 
     pub unsafe fn offset(&mut self, offset: isize) {
-        self.ptr = self.ptr.offset(offset);
+        self.ptr = (self.ptr as isize + offset) as *mut T;
     }
 
     pub fn with_capacity(capacity: u64) -> Self {
@@ -121,6 +121,7 @@ impl<T> Vector<T> {
 }
 
 #[repr(C)]
+#[derive(Debug)]
 pub struct String(pub Vector<u8>);
 impl String {
     pub fn as_str(&self) -> Result<&str, Utf8Error> {
