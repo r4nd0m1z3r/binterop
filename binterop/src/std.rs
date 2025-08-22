@@ -72,7 +72,7 @@ impl<T> Vector<T> {
     }
 
     pub unsafe fn offset(&mut self, offset: isize) {
-        self.ptr = (self.ptr as isize + offset) as *mut T;
+        self.ptr = self.ptr.byte_offset(offset)
     }
 
     pub fn with_capacity(capacity: u64) -> Self {

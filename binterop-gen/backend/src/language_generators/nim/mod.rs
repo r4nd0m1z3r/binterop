@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use binterop::{
     schema::Schema,
-    types::{data::DataType, function::FunctionType, r#enum::EnumType, union::UnionType, Type},
+    types::{data::DataType, r#enum::EnumType, function::FunctionType, union::UnionType, Type},
 };
 use case::CaseExt;
 
@@ -104,7 +104,7 @@ impl LanguageGenerator for NimLanguageGenerator {
     fn generate_enum_type(
         &mut self,
         state: &mut LanguageGeneratorState,
-        enum_type: &binterop::types::r#enum::EnumType,
+        enum_type: &EnumType,
     ) -> Result<(), String> {
         let mut variants_text = String::new();
         for variant in &enum_type.variants {

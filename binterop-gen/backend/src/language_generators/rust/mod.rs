@@ -10,8 +10,6 @@ use crate::language_generators::{LanguageGenerator, SourceFile};
 
 use super::LanguageGeneratorState;
 
-mod helpers;
-
 #[derive(Default)]
 pub struct RustLanguageGenerator {}
 impl RustLanguageGenerator {
