@@ -1,4 +1,8 @@
-use std::path::PathBuf;
+use std::{
+    fs,
+    io::ErrorKind,
+    path::{Path, PathBuf},
+};
 
 use binterop::{
     schema::Schema,
@@ -69,9 +73,16 @@ impl LanguageGenerator for GoLanguageGenerator {
         let mut output_file_name = PathBuf::from(state.file_name);
         output_file_name.set_extension("go");
 
+        let package_name = output_file_name.file_stem().unwrap().to_str().unwrap();
+
         let output_file =
-            SourceFile::new(output_file_name).contents("import helpers\n\n".to_string());
+            SourceFile::new(&output_file_name).contents(format!("package {package_name}\n\nimport (\n\t\"binterop/helpers\"\n)\nvar _ = binterop.NewVector[byte]()\n\n"));
         state.output_files.push(output_file);
+
+        let go_mod_file = SourceFile::new("go.mod").contents(format!(
+            "module {package_name}\n\ngo 1.24\n\nrequire binterop/helpers v0.0.0\n"
+        ));
+        state.output_files.push(go_mod_file);
 
         Ok(())
     }
@@ -92,12 +103,12 @@ impl LanguageGenerator for GoLanguageGenerator {
 
             let field_type_name = Self::go_type_name(field.r#type, field.type_index, &state.schema);
 
-            fields_text.push_str(&format!("{} {}\n", field.name, field_type_name));
+            fields_text.push_str(&format!("\t{} {}\n", field.name.to_camel(), field_type_name));
         }
 
         let output = &mut Self::output_file_mut(state).content;
         output.push_str(&format!(
-            "type {} struct {{\n{fields_text}\n}}\n\n",
+            "type {} struct {{\n{fields_text}}}\n\n",
             data_type.name
         ));
 
@@ -119,7 +130,7 @@ impl LanguageGenerator for GoLanguageGenerator {
         output.push_str(&format!("type {} int32\n\n", enum_type.name));
 
         for (i, variant) in enum_type.variants.iter().enumerate() {
-            output.push_str(&format!("const {} = {}\n", variant, i));
+            output.push_str(&format!("const {} = {}\n", variant.to_camel(), i));
         }
 
         state.mark_generated(&enum_type.name);
@@ -155,8 +166,8 @@ impl LanguageGenerator for GoLanguageGenerator {
         let output = &mut Self::output_file_mut(state).content;
         output.push_str(&format!("type {} struct {{\n", union_type.name));
 
-        output.push_str(&format!("  variant {}Variant\n", union_type.name));
-        output.push_str(&format!("  data [{variant_size}]byte\n}}\n\n"));
+        output.push_str(&format!("  Variant {}Variant\n", union_type.name));
+        output.push_str(&format!("  Data [{variant_size}]byte\n}}\n\n"));
 
         state.mark_generated(&union_type.name);
         Ok(())
@@ -180,8 +191,7 @@ impl LanguageGenerator for GoLanguageGenerator {
             .iter()
             .map(|arg| {
                 let type_data = arg.r#type.unwrap();
-                let type_name =
-                    Self::go_type_name(type_data.r#type, type_data.index, state.schema);
+                let type_name = Self::go_type_name(type_data.r#type, type_data.index, state.schema);
 
                 format!("{} {type_name}", arg.name)
             })
@@ -205,10 +215,44 @@ impl LanguageGenerator for GoLanguageGenerator {
         let output = &mut Self::output_file_mut(state).content;
         output.push_str(&format!(
             "type {} func({args_text}){return_type_text}\n",
-            function_type.name.to_camel_lowercase(),
+            function_type.name.to_camel(),
         ));
 
         state.mark_generated(&function_type.name);
+        Ok(())
+    }
+
+    fn finish(
+        &mut self,
+        state: &mut LanguageGeneratorState,
+        output_dir_path: &Path,
+    ) -> Result<(), String> {
+        let package_name = Path::new(state.file_name)
+            .file_stem()
+            .unwrap()
+            .to_str()
+            .unwrap();
+        let output_dir_path = output_dir_path.join(package_name);
+
+        let dir_create_result = fs::create_dir(&output_dir_path);
+        if let Err(err) = dir_create_result {
+            if err.kind() != ErrorKind::AlreadyExists {
+                return Err(format!(
+                    "Failed to create output directory at {output_dir_path:?}! Err: {err:?}",
+                ));
+            }
+        }
+
+        for output_file in &mut state.output_files {
+            let full_path = output_dir_path.join(&output_file.path);
+
+            fs::write(&full_path, &output_file.content).map_err(|err| {
+                format!(
+                    "Failed to write output file to {}! Err: {err:?}",
+                    full_path.display()
+                )
+            })?;
+        }
         Ok(())
     }
 }
