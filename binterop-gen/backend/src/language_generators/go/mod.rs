@@ -31,13 +31,13 @@ impl GoLanguageGenerator {
             Type::Array => {
                 let array_type = schema.arrays[type_index];
                 format!(
-                    "{}[{}]",
+                    "[{}]{}",
+                    array_type.len,
                     GoLanguageGenerator::go_type_name(
                         array_type.inner_type,
                         array_type.inner_type_index,
                         schema
                     ),
-                    array_type.len
                 )
             }
             Type::Vector => {
@@ -48,8 +48,9 @@ impl GoLanguageGenerator {
                     schema,
                 );
 
-                format!("Vector[{inner_type_name}]")
+                format!("binterop.Vector[{inner_type_name}]")
             }
+            Type::String => "binterop.String".to_string(),
             Type::Pointer => {
                 let pointer_type = schema.pointers[type_index];
                 let inner_type_name = Self::go_type_name(
@@ -103,7 +104,11 @@ impl LanguageGenerator for GoLanguageGenerator {
 
             let field_type_name = Self::go_type_name(field.r#type, field.type_index, &state.schema);
 
-            fields_text.push_str(&format!("\t{} {}\n", field.name.to_camel(), field_type_name));
+            fields_text.push_str(&format!(
+                "\t{} {}\n",
+                field.name.to_camel(),
+                field_type_name
+            ));
         }
 
         let output = &mut Self::output_file_mut(state).content;
@@ -121,17 +126,24 @@ impl LanguageGenerator for GoLanguageGenerator {
         state: &mut LanguageGeneratorState,
         enum_type: &EnumType,
     ) -> Result<(), String> {
-        let mut variants_text = String::new();
-        for variant in &enum_type.variants {
-            variants_text.push_str(&format!("  {variant}\n"));
-        }
+        let mut variants_iter = enum_type.variants.iter();
+        let first_variant = variants_iter
+            .next()
+            .ok_or("Enum has no variants")?
+            .to_camel();
 
         let output = &mut Self::output_file_mut(state).content;
-        output.push_str(&format!("type {} int32\n\n", enum_type.name));
+        output.push_str(&format!("type {} int32\n", enum_type.name));
+        output.push_str(&format!(
+            "const (\n\t{first_variant} {} = iota\n",
+            &enum_type.name
+        ));
 
-        for (i, variant) in enum_type.variants.iter().enumerate() {
-            output.push_str(&format!("const {} = {}\n", variant.to_camel(), i));
+        for variant in variants_iter {
+            output.push_str(&format!("\t{}\n", variant.to_camel()));
         }
+
+        output.push_str(")\n\n");
 
         state.mark_generated(&enum_type.name);
         Ok(())
