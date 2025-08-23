@@ -1,4 +1,5 @@
 use crate::generator::Generator;
+use crate::language_generators::go::GoLanguageGenerator;
 use crate::language_generators::nim::NimLanguageGenerator;
 use crate::language_generators::rust::RustLanguageGenerator;
 use crate::language_generators::{LanguageGenerator, LanguageGeneratorState};
@@ -42,23 +43,17 @@ pub fn generate_lang_files(
         .unwrap()
         .unwrap();
     let mut state = LanguageGeneratorState::new(file_name, schema);
+    let output_dir_path = bintdef_path.parent().unwrap();
+    let mut generator: Box<dyn LanguageGenerator> = match gen_name {
+        "rust" => Box::new(RustLanguageGenerator::default()),
+        "nim" => Box::new(NimLanguageGenerator::default()),
+        "go" => Box::new(GoLanguageGenerator::default()),
+        _ => Err(format!("Unknown language generator name: {gen_name}"))?,
+    };
 
-    match gen_name {
-        "rust" => {
-            let mut generator = RustLanguageGenerator::default();
-            generator.generate(&mut state, bintdef_path.parent().unwrap())?;
-
-            Ok(())
-        }
-        "nim" => {
-            let mut generator = NimLanguageGenerator::default();
-            generator.generate(&mut state, bintdef_path.parent().unwrap())?;
-
-            Ok(())
-        }
-        _ => Err(format!("Unknown language generator name: {gen_name}")),
-    }
-    .map_err(|err| format!("Failed to generate language files! Error: {err}"))
+    generator
+        .generate(&mut state, output_dir_path)
+        .map_err(|err| format!("Failed to generate language files! Error: {err}"))
 }
 
 pub fn process_text(path: &Path, text: &str, args: &[String]) -> Result<(), String> {
