@@ -1,4 +1,8 @@
-use std::{fmt::Debug, mem::ManuallyDrop, str::Utf8Error};
+use std::{
+    fmt::{self, Debug, Display},
+    mem::ManuallyDrop,
+    str::Utf8Error,
+};
 
 use crate::{
     schema::Schema,
@@ -26,7 +30,7 @@ impl<T: Binterop> Binterop for Vector<T> {
     }
 }
 impl<T: Debug> Debug for Vector<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_list().entries(self.as_slice()).finish()
     }
 }
@@ -121,8 +125,13 @@ impl<T> Vector<T> {
 }
 
 #[repr(C)]
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct String(pub Vector<u8>);
+impl Debug for String {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self.as_str().unwrap_or("Invalid UTF-8"))
+    }
+}
 impl String {
     pub fn as_str(&self) -> Result<&str, Utf8Error> {
         std::str::from_utf8(self.0.as_slice())
