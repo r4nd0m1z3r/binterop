@@ -31,8 +31,9 @@ impl RustLanguageGenerator {
                     heap_array_type.inner_type_index,
                     schema,
                 );
-                format!("helpers::Vector<{inner_type_name}>")
+                format!("binterop::std::Vector<{inner_type_name}>")
             }
+            Type::String => "binterop::std::String".to_string(),
             Type::Pointer => {
                 let pointer_type = schema.pointers[type_index];
                 let inner_type_name = Self::rust_type_name(
@@ -58,7 +59,7 @@ impl LanguageGenerator for RustLanguageGenerator {
         output_file_name.set_extension("rs");
 
         let output_file =
-            SourceFile::new(output_file_name).contents("mod helpers;\n\n".to_string());
+            SourceFile::new(output_file_name);
         state.output_files.push(output_file);
 
         Ok(())

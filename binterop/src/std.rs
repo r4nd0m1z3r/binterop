@@ -121,7 +121,7 @@ impl<T> Vector<T> {
 }
 
 #[repr(C)]
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct String(pub Vector<u8>);
 impl String {
     pub fn as_str(&self) -> Result<&str, Utf8Error> {
