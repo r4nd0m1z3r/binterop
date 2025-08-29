@@ -14,6 +14,13 @@ type Vector*[T] = object
 
 type String* = Vector[uint8]
 
+proc fromNimString*(str: string): String =
+  return String(
+    pointer: cast[ptr UncheckedArray[uint8]](addr(str[0])),
+    len: len(str).uint64,
+    capacity: len(str).uint64,
+  )
+
 proc newVector*[T](capacity: uint64 = 0): Vector[T] =
   return Vector[T](
     pointer: cast[ptr UncheckedArray[T]](allocShared(capacity * sizeof(T).uint64)),
