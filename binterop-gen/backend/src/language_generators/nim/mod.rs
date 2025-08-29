@@ -93,7 +93,7 @@ impl LanguageGenerator for NimLanguageGenerator {
 
         let output = &mut Self::output_file_mut(state).content;
         output.push_str(&format!(
-            "type {} = object\n{fields_text}\n",
+            "type {}* = object\n{fields_text}\n",
             data_type.name
         ));
 
@@ -113,7 +113,7 @@ impl LanguageGenerator for NimLanguageGenerator {
 
         let output = &mut Self::output_file_mut(state).content;
         output.push_str(&format!(
-            "type {} = enum\n{variants_text}\n",
+            "type {}* = enum\n{variants_text}\n",
             enum_type.name
         ));
 
@@ -153,7 +153,7 @@ impl LanguageGenerator for NimLanguageGenerator {
         let union_name = union_type.name.to_camel();
         let output = &mut Self::output_file_mut(state).content;
         output.push_str(&format!(
-            "type {union_name} = object\n  case variant: {union_name}Variant\n{union_fields_text}\n\n",
+            "type {union_name}* = object\n  case variant: {union_name}Variant\n{union_fields_text}\n\n",
         ));
 
         Ok(())
@@ -201,7 +201,7 @@ impl LanguageGenerator for NimLanguageGenerator {
 
         let output = &mut Self::output_file_mut(state).content;
         output.push_str(&format!(
-            "type {} = proc({args_text}){return_type_text}\n",
+            "type {}* = proc({args_text}){return_type_text}\n",
             function_type.name.to_camel_lowercase(),
         ));
 
