@@ -1,5 +1,6 @@
 use std::{
-    fmt::{self, Debug, Display},
+    fmt::{self, Debug},
+    marker::PhantomData,
     mem::ManuallyDrop,
     str::Utf8Error,
 };
@@ -12,9 +13,10 @@ use crate::{
 
 #[repr(C)]
 pub struct Vector<T> {
-    pub ptr: *mut T,
+    pub ptr: u64,
     pub length: u64,
     pub capacity: u64,
+    _p: PhantomData<T>,
 }
 impl<T: Binterop> Binterop for Vector<T> {
     fn binterop_type(schema: &mut Schema) -> WrappedType {
@@ -53,69 +55,84 @@ impl<T> From<Vec<T>> for Vector<T> {
         };
 
         Self {
-            ptr,
+            ptr: ptr as u64,
             length: len as u64,
             capacity: capacity as u64,
+            _p: PhantomData,
         }
     }
 }
 impl<T> Into<Vec<T>> for Vector<T> {
     fn into(self) -> Vec<T> {
-        unsafe { Vec::from_raw_parts(self.ptr, self.length as usize, self.capacity as usize) }
+        unsafe { Vec::from_raw_parts(self.ptr as _, self.length as usize, self.capacity as usize) }
     }
 }
 impl<T> Vector<T> {
     pub fn new() -> Self {
-        let mut vec = vec![];
+        let mut vec = Vec::<T>::new();
 
         Self {
-            ptr: vec.as_mut_ptr(),
+            ptr: vec.as_mut_ptr().addr() as u64,
             length: vec.len() as u64,
             capacity: vec.capacity() as u64,
+            _p: PhantomData,
+        }
+    }
+
+    pub unsafe fn from_raw_parts(ptr: u64, length: u64, capacity: u64) -> Self {
+        Self {
+            ptr,
+            length,
+            capacity,
+            _p: PhantomData,
         }
     }
 
     pub unsafe fn offset(&mut self, offset: isize) {
-        self.ptr = self.ptr.byte_offset(offset)
+        self.ptr = (self.ptr as *mut T).byte_offset(offset).addr() as u64
     }
 
     pub fn with_capacity(capacity: u64) -> Self {
-        let mut vec = Vec::with_capacity(capacity as usize);
+        let mut vec = Vec::<T>::with_capacity(capacity as usize);
 
         Self {
-            ptr: vec.as_mut_ptr(),
+            ptr: vec.as_mut_ptr().addr() as u64,
             length: vec.len() as u64,
             capacity: vec.capacity() as u64,
+            _p: PhantomData,
         }
     }
 
     pub fn as_slice(&self) -> &[T] {
-        unsafe { std::slice::from_raw_parts(self.ptr, self.length as usize) }
+        unsafe { std::slice::from_raw_parts(self.ptr as _, self.length as usize) }
     }
 
     pub fn as_mut_slice(&mut self) -> &mut [T] {
-        unsafe { std::slice::from_raw_parts_mut(self.ptr, self.length as usize) }
+        unsafe { std::slice::from_raw_parts_mut(self.ptr as _, self.length as usize) }
     }
 
     pub fn reserve(&mut self, additional: u64) {
-        let mut vec =
-            unsafe { Vec::from_raw_parts(self.ptr, self.length as usize, self.capacity as usize) };
+        let mut vec = unsafe {
+            Vec::from_raw_parts(self.ptr as _, self.length as usize, self.capacity as usize)
+        };
         vec.reserve(additional as usize);
 
         *self = vec.into();
     }
 
     pub fn push(&mut self, elem: T) {
-        let mut vec =
-            unsafe { Vec::from_raw_parts(self.ptr, self.length as usize, self.capacity as usize) };
+        let mut vec = unsafe {
+            Vec::from_raw_parts(self.ptr as _, self.length as usize, self.capacity as usize)
+        };
         vec.push(elem);
 
         *self = vec.into();
     }
 
     pub fn pop(&mut self) -> Option<T> {
-        let mut vec =
-            unsafe { Vec::from_raw_parts(self.ptr, self.length as usize, self.capacity as usize) };
+        let mut vec = unsafe {
+            Vec::from_raw_parts(self.ptr as _, self.length as usize, self.capacity as usize)
+        };
         let elem = vec.pop();
 
         *self = vec.into();
@@ -147,6 +164,11 @@ impl Into<std::string::String> for String {
         let vec: Vec<u8> = self.0.into();
 
         std::string::String::from_utf8(vec).unwrap()
+    }
+}
+impl From<&str> for String {
+    fn from(value: &str) -> Self {
+        Self(value.as_bytes().to_vec().into())
     }
 }
 impl From<std::string::String> for String {
