@@ -3,9 +3,16 @@ use chumsky::prelude::*;
 use std::{collections::VecDeque, path::PathBuf};
 
 #[derive(Debug)]
+pub enum Type<'a> {
+    Named(&'a str),
+    Array(&'a str, usize),
+    Pointer(&'a str),
+}
+
+#[derive(Debug)]
 pub enum Token<'a> {
     Struct(&'a str),
-    Field(&'a str, &'a str),
+    Field(&'a str, Type<'a>),
 }
 
 pub fn parser<'a>(
@@ -16,25 +23,23 @@ pub fn parser<'a>(
         .ignore_then(text::ident().padded())
         .map(|name| Token::Struct(name));
 
+    let array_parser = just('[')
+        .ignore_then(text::ident())
+        .then_ignore(just(':'))
+        .then(text::int(10))
+        .then_ignore(just(']'))
+        .try_map(|(inner_type_name, size): (&str, &str), span| {
+            let size = size.parse().map_err(|e| Rich::custom(span, e))?;
+            Ok(Type::Array(inner_type_name, size))
+        });
+    let pointer_parser = text::ident().then_ignore(just('*')).map(Type::Pointer);
+    let type_parser = choice((text::ident().map(Type::Named), array_parser, pointer_parser));
+
     let field = text::ident()
         .padded()
         .then_ignore(just(':'))
-        .then(custom(|input| {
-            let start = input.cursor();
-            loop {
-                match input.peek() {
-                    Some(',' | '}') => return Ok(input.slice_since(&start..)),
-                    Some(_) => {
-                        input.next();
-                    }
-                    None => {
-                        let err = Rich::custom(input.span_since(&start), "TODO");
-                        return Err(err);
-                    }
-                }
-            }
-        }))
-        .map(|(field_name, type_name): (&str, &str)| Token::Field(field_name, type_name.trim()));
+        .then(type_parser.padded())
+        .map(|(field_name, ty)| Token::Field(field_name, ty));
 
     let fields = field
         .separated_by(just(','))
