@@ -6,6 +6,7 @@ use std::{collections::VecDeque, path::PathBuf};
 pub enum Type<'a> {
     Named(&'a str),
     Array(&'a str, usize),
+    Vector(&'a str),
     Pointer(&'a str),
 }
 
@@ -13,27 +14,35 @@ pub enum Type<'a> {
 pub enum Token<'a> {
     Struct(&'a str),
     Field(&'a str, Type<'a>),
+    Enum(&'a str),
+    Union(&'a str),
+    Variant(&'a str),
 }
 
-pub fn parser<'a>(
-    text: &'a str,
-) -> impl Parser<'a, &'a str, Vec<Vec<Token<'a>>>, extra::Err<Rich<'a, char>>> {
+pub fn struct_parser<'a>(
+) -> impl Parser<'a, &'a str, VecDeque<Token<'a>>, extra::Err<Rich<'a, char>>> {
     let struct_decl = text::keyword("struct")
         .padded()
         .ignore_then(text::ident().padded())
         .map(|name| Token::Struct(name));
 
+    let named_parser = text::ident().map(Type::Named);
     let array_parser = just('[')
+        .padded()
         .ignore_then(text::ident())
-        .then_ignore(just(':'))
+        .then_ignore(just(':').padded())
         .then(text::int(10))
-        .then_ignore(just(']'))
+        .then_ignore(just(']').padded())
         .try_map(|(inner_type_name, size): (&str, &str), span| {
             let size = size.parse().map_err(|e| Rich::custom(span, e))?;
             Ok(Type::Array(inner_type_name, size))
         });
+    let vector_parser = text::ident()
+        .delimited_by(just('<').padded(), just('>').padded())
+        .map(Type::Vector);
     let pointer_parser = text::ident().then_ignore(just('*')).map(Type::Pointer);
-    let type_parser = choice((text::ident().map(Type::Named), array_parser, pointer_parser));
+
+    let type_parser = choice((array_parser, vector_parser, pointer_parser, named_parser));
 
     let field = text::ident()
         .padded()
@@ -51,10 +60,59 @@ pub fn parser<'a>(
         .then(fields)
         .map(|(struct_decl, mut fields)| {
             fields.push_front(struct_decl);
-            fields.into()
+            fields
         })
-        .repeated()
-        .collect()
+        .padded()
+}
+
+pub fn variants_parser<'a>(
+) -> impl Parser<'a, &'a str, VecDeque<Token<'a>>, extra::Err<Rich<'a, char>>> {
+    text::ident()
+        .padded()
+        .map(Token::Variant)
+        .separated_by(just(','))
+        .allow_trailing()
+        .collect::<VecDeque<_>>()
+        .delimited_by(just('{').padded(), just('}').padded())
+}
+
+pub fn enum_parser<'a>() -> impl Parser<'a, &'a str, VecDeque<Token<'a>>, extra::Err<Rich<'a, char>>>
+{
+    let enum_decl = text::keyword("enum")
+        .padded()
+        .ignore_then(text::ident().padded())
+        .map(Token::Enum);
+
+    enum_decl
+        .then(variants_parser())
+        .map(|(enum_decl, mut variants)| {
+            variants.push_front(enum_decl);
+            variants.into()
+        })
+        .padded()
+}
+
+pub fn union_parser<'a>(
+) -> impl Parser<'a, &'a str, VecDeque<Token<'a>>, extra::Err<Rich<'a, char>>> {
+    let union_decl = text::keyword("union")
+        .padded()
+        .ignore_then(text::ident().padded())
+        .map(Token::Union);
+
+    union_decl
+        .then(variants_parser())
+        .map(|(union_decl, mut variants)| {
+            variants.push_front(union_decl);
+            variants
+        })
+        .padded()
+}
+
+pub fn parser<'a>() -> impl Parser<'a, &'a str, Vec<VecDeque<Token<'a>>>, extra::Err<Rich<'a, char>>>
+{
+    let parser = choice((struct_parser(), enum_parser(), union_parser()));
+
+    parser.repeated().collect()
 }
 
 pub struct Tokenizer<'a> {
@@ -64,8 +122,7 @@ pub struct Tokenizer<'a> {
 }
 impl<'a> Tokenizer<'a> {
     pub fn new(file_path: Option<PathBuf>, text: &'a str) -> Self {
-        let parser = parser(text);
-        let (output, errors) = parser.parse(text).into_output_errors();
+        let (output, errors) = parser().parse(text).into_output_errors();
 
         let report_source = file_path
             .as_ref()

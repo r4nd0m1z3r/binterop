@@ -1,0 +1,28 @@
+
+struct Test {
+    a: [u8:69],
+    b: u32
+}
+
+enum SomeEnum {
+    Variant1,
+    Variant2,
+    Variant3,
+}
+
+enum Color  {
+Red,
+Green,
+Blue,
+}
+
+struct Vec3 {
+    x: f32,
+    y: SomeEnum,
+    z: Color,
+}
+
+union SomeUnion {
+    Color,
+    Vec3,
+}
