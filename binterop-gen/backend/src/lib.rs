@@ -13,3 +13,4 @@ pub mod helpers;
 pub mod language_generators;
 pub mod optimization;
 pub mod tokenizer;
+pub mod tokenizer_chumsky;
