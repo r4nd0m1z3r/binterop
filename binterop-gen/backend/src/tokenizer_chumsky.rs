@@ -1,6 +1,10 @@
 use ariadne::{Label, Report, ReportKind, Source};
-use chumsky::{container::Container, prelude::*};
-use std::{collections::VecDeque, path::PathBuf};
+use chumsky::{container::Container, prelude::*, text::Char};
+use std::{
+    collections::VecDeque,
+    env,
+    path::{Path, PathBuf},
+};
 
 #[derive(Debug)]
 pub enum Type<'a> {
@@ -15,6 +19,7 @@ pub enum Token<'a> {
     Struct(&'a str, Vec<(&'a str, Type<'a>)>),
     Enum(&'a str, Vec<&'a str>),
     Union(&'a str, Vec<&'a str>),
+    Include(PathBuf, Vec<Token<'a>>),
 }
 
 pub fn struct_parser<'a>() -> impl Parser<'a, &'a str, Token<'a>, extra::Err<Rich<'a, char>>> {
@@ -122,9 +127,37 @@ pub fn union_parser<'a>() -> impl Parser<'a, &'a str, Token<'a>, extra::Err<Rich
         .padded()
 }
 
+pub fn include_parser<'a>() -> impl Parser<'a, &'a str, Token<'a>, extra::Err<Rich<'a, char>>> {
+    let path_content = any()
+        .filter(|c: &char| !c.is_newline())
+        .repeated()
+        .to_slice()
+        .labelled("file path");
+    let path_parser = path_content.try_map(|path: &'a str, span| {
+        let path = todo!("Figure out a way to give parser a path to current file")
+            .parent()
+            .unwrap_or(&env::current_dir().unwrap_or_default())
+            .join(path);
+
+        Path::canonicalize(&path).map_err(|e| Rich::custom(span, e))
+    });
+
+    let include_decl = text::keyword("include")
+        .padded()
+        .ignore_then(path_parser)
+        .map(|path| Token::Include(path, Vec::new()));
+
+    include_decl
+}
+
 pub fn parser<'a, C: Container<Token<'a>>>(
 ) -> impl Parser<'a, &'a str, C, extra::Err<Rich<'a, char>>> {
-    let parser = choice((struct_parser(), enum_parser(), union_parser()));
+    let parser = choice((
+        include_parser(),
+        struct_parser(),
+        enum_parser(),
+        union_parser(),
+    ));
 
     parser.repeated().collect()
 }
