@@ -1,6 +1,6 @@
 use ariadne::{Label, Report, ReportKind, Source};
 use chumsky::prelude::*;
-use std::{collections::VecDeque, path::PathBuf};
+use std::path::PathBuf;
 
 #[derive(Debug)]
 pub enum Type<'a> {
@@ -12,19 +12,16 @@ pub enum Type<'a> {
 
 #[derive(Debug)]
 pub enum Token<'a> {
-    Struct(&'a str),
-    Field(&'a str, Type<'a>),
-    Enum(&'a str),
-    Union(&'a str),
-    Variant(&'a str),
+    Struct(&'a str, Vec<(&'a str, Type<'a>)>),
+    Enum(&'a str, Vec<&'a str>),
+    Union(&'a str, Vec<&'a str>),
 }
 
-pub fn struct_parser<'a>(
-) -> impl Parser<'a, &'a str, VecDeque<Token<'a>>, extra::Err<Rich<'a, char>>> {
+pub fn struct_parser<'a>() -> impl Parser<'a, &'a str, Token<'a>, extra::Err<Rich<'a, char>>> {
     let struct_decl = text::keyword("struct")
         .padded()
         .ignore_then(text::ident().padded())
-        .map(|name| Token::Struct(name));
+        .map(|name| Token::Struct(name, Vec::new()));
 
     let named_parser = text::ident().map(Type::Named);
     let array_parser = just('[')
@@ -48,68 +45,84 @@ pub fn struct_parser<'a>(
         .padded()
         .then_ignore(just(':'))
         .then(type_parser.padded())
-        .map(|(field_name, ty)| Token::Field(field_name, ty));
+        .map(|(field_name, ty)| (field_name, ty));
 
     let fields = field
         .separated_by(just(','))
         .allow_trailing()
-        .collect::<VecDeque<_>>()
+        .collect()
         .delimited_by(just('{').padded(), just('}').padded());
 
     struct_decl
         .then(fields)
-        .map(|(struct_decl, mut fields)| {
-            fields.push_front(struct_decl);
-            fields
+        .map(|(mut struct_decl, fields)| {
+            if let Token::Struct(_, struct_fields) = &mut struct_decl {
+                *struct_fields = fields;
+            } else {
+                unreachable!(
+                    "struct_decl is supposed to only yield Token::Struct, but got {struct_decl:?}"
+                );
+            }
+
+            struct_decl
         })
         .padded()
 }
 
-pub fn variants_parser<'a>(
-) -> impl Parser<'a, &'a str, VecDeque<Token<'a>>, extra::Err<Rich<'a, char>>> {
+pub fn variants_parser<'a>() -> impl Parser<'a, &'a str, Vec<&'a str>, extra::Err<Rich<'a, char>>> {
     text::ident()
         .padded()
-        .map(Token::Variant)
         .separated_by(just(','))
         .allow_trailing()
-        .collect::<VecDeque<_>>()
+        .collect()
         .delimited_by(just('{').padded(), just('}').padded())
 }
 
-pub fn enum_parser<'a>() -> impl Parser<'a, &'a str, VecDeque<Token<'a>>, extra::Err<Rich<'a, char>>>
-{
+pub fn enum_parser<'a>() -> impl Parser<'a, &'a str, Token<'a>, extra::Err<Rich<'a, char>>> {
     let enum_decl = text::keyword("enum")
         .padded()
         .ignore_then(text::ident().padded())
-        .map(Token::Enum);
+        .map(|name| Token::Enum(name, Vec::new()));
 
     enum_decl
         .then(variants_parser())
-        .map(|(enum_decl, mut variants)| {
-            variants.push_front(enum_decl);
-            variants.into()
+        .map(|(mut enum_decl, variants)| {
+            if let Token::Enum(_, enum_variants) = &mut enum_decl {
+                *enum_variants = variants;
+            } else {
+                unreachable!(
+                    "enum_decl is supposed to only yield Token::Enum, but got {enum_decl:?}"
+                );
+            }
+
+            enum_decl
         })
         .padded()
 }
 
-pub fn union_parser<'a>(
-) -> impl Parser<'a, &'a str, VecDeque<Token<'a>>, extra::Err<Rich<'a, char>>> {
+pub fn union_parser<'a>() -> impl Parser<'a, &'a str, Token<'a>, extra::Err<Rich<'a, char>>> {
     let union_decl = text::keyword("union")
         .padded()
         .ignore_then(text::ident().padded())
-        .map(Token::Union);
+        .map(|name| Token::Union(name, Vec::new()));
 
     union_decl
         .then(variants_parser())
-        .map(|(union_decl, mut variants)| {
-            variants.push_front(union_decl);
-            variants
+        .map(|(mut union_decl, variants)| {
+            if let Token::Union(_, union_variants) = &mut union_decl {
+                *union_variants = variants;
+            } else {
+                unreachable!(
+                    "union_decl is supposed to only yield Token::Union, but got {union_decl:?}"
+                );
+            }
+
+            union_decl
         })
         .padded()
 }
 
-pub fn parser<'a>() -> impl Parser<'a, &'a str, Vec<VecDeque<Token<'a>>>, extra::Err<Rich<'a, char>>>
-{
+pub fn parser<'a>() -> impl Parser<'a, &'a str, Vec<Token<'a>>, extra::Err<Rich<'a, char>>> {
     let parser = choice((struct_parser(), enum_parser(), union_parser()));
 
     parser.repeated().collect()
@@ -138,12 +151,12 @@ impl<'a> Tokenizer<'a> {
 
         reports.for_each(|report| report.print((report_source, Source::from(text))).unwrap());
 
-        dbg!(output);
+        dbg!(&output);
 
         Self {
             file_path,
             text,
-            tokens: vec![Token::Struct("TODO")],
+            tokens: output.unwrap_or_default(),
         }
     }
 
