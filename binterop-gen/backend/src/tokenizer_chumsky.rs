@@ -1,6 +1,6 @@
 use ariadne::{Label, Report, ReportKind, Source};
-use chumsky::prelude::*;
-use std::path::PathBuf;
+use chumsky::{container::Container, prelude::*};
+use std::{collections::VecDeque, path::PathBuf};
 
 #[derive(Debug)]
 pub enum Type<'a> {
@@ -122,7 +122,8 @@ pub fn union_parser<'a>() -> impl Parser<'a, &'a str, Token<'a>, extra::Err<Rich
         .padded()
 }
 
-pub fn parser<'a>() -> impl Parser<'a, &'a str, Vec<Token<'a>>, extra::Err<Rich<'a, char>>> {
+pub fn parser<'a, C: Container<Token<'a>>>(
+) -> impl Parser<'a, &'a str, C, extra::Err<Rich<'a, char>>> {
     let parser = choice((struct_parser(), enum_parser(), union_parser()));
 
     parser.repeated().collect()
@@ -130,8 +131,7 @@ pub fn parser<'a>() -> impl Parser<'a, &'a str, Vec<Token<'a>>, extra::Err<Rich<
 
 pub struct Tokenizer<'a> {
     file_path: Option<PathBuf>,
-    text: &'a str,
-    tokens: Vec<Token<'a>>,
+    tokens: VecDeque<Token<'a>>,
 }
 impl<'a> Tokenizer<'a> {
     pub fn new(file_path: Option<PathBuf>, text: &'a str) -> Self {
@@ -155,12 +155,11 @@ impl<'a> Tokenizer<'a> {
 
         Self {
             file_path,
-            text,
             tokens: output.unwrap_or_default(),
         }
     }
 
     pub fn yield_token(&mut self) -> Option<Token<'a>> {
-        self.tokens.pop()
+        self.tokens.pop_front()
     }
 }
