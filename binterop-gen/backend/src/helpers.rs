@@ -15,8 +15,11 @@ pub fn generate_schema(
     definition_text: &str,
     optimizations: SchemaOptimizations,
 ) -> Result<Schema, String> {
-    let mut chumsky = crate::tokenizer_chumsky::Tokenizer::new(file_path.clone(), definition_text);
-    
+    let mut chumsky = crate::tokenizer_chumsky::Tokenizer::new(
+        file_path.as_ref().map(PathBuf::as_path),
+        definition_text,
+    );
+
     let mut tokenizer = Tokenizer::new(file_path, definition_text);
     let mut generator = Generator::default();
 

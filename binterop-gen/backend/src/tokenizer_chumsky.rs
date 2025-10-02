@@ -4,6 +4,7 @@ use std::{
     collections::VecDeque,
     env,
     path::{Path, PathBuf},
+    sync::Arc,
 };
 
 #[derive(Debug)]
@@ -127,14 +128,14 @@ pub fn union_parser<'a>() -> impl Parser<'a, &'a str, Token<'a>, extra::Err<Rich
         .padded()
 }
 
-pub fn include_parser<'a>() -> impl Parser<'a, &'a str, Token<'a>, extra::Err<Rich<'a, char>>> {
+pub fn include_parser<'a>(file_path: Arc<PathBuf>) -> impl Parser<'a, &'a str, Token<'a>, extra::Err<Rich<'a, char>>> {
     let path_content = any()
         .filter(|c: &char| !c.is_newline())
         .repeated()
         .to_slice()
         .labelled("file path");
-    let path_parser = path_content.try_map(|path: &'a str, span| {
-        let path = todo!("Figure out a way to give parser a path to current file")
+    let path_parser = path_content.try_map(move |path: &'a str, span| {
+        let path = file_path
             .parent()
             .unwrap_or(&env::current_dir().unwrap_or_default())
             .join(path);
@@ -151,9 +152,12 @@ pub fn include_parser<'a>() -> impl Parser<'a, &'a str, Token<'a>, extra::Err<Ri
 }
 
 pub fn parser<'a, C: Container<Token<'a>>>(
+    file_path: Option<Arc<PathBuf>>,
 ) -> impl Parser<'a, &'a str, C, extra::Err<Rich<'a, char>>> {
+    let file_path = file_path.unwrap_or_else(|| Arc::new(PathBuf::new()));
+    
     let parser = choice((
-        include_parser(),
+        include_parser(file_path),
         struct_parser(),
         enum_parser(),
         union_parser(),
@@ -163,12 +167,13 @@ pub fn parser<'a, C: Container<Token<'a>>>(
 }
 
 pub struct Tokenizer<'a> {
-    file_path: Option<PathBuf>,
+    file_path: Option<Arc<PathBuf>>,
     tokens: VecDeque<Token<'a>>,
 }
 impl<'a> Tokenizer<'a> {
-    pub fn new(file_path: Option<PathBuf>, text: &'a str) -> Self {
-        let (output, errors) = parser().parse(text).into_output_errors();
+    pub fn new(file_path: Option<&Path>, text: &'a str) -> Self {
+        let file_path = file_path.map(Path::to_path_buf).map(Arc::new);
+        let (output, errors) = parser(file_path.clone()).parse(text).into_output_errors();
 
         let report_source = file_path
             .as_ref()
