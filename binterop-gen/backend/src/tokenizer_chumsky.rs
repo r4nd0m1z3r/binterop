@@ -7,6 +7,9 @@ use std::{
     sync::Arc,
 };
 
+type ParserExtra<'a> =
+    extra::Full<Rich<'a, char>, extra::SimpleState<ParserState<'a, VecDeque<Token<'a>>>>, ()>;
+
 #[derive(Debug)]
 pub enum Type<'a> {
     Named(&'a str),
@@ -23,7 +26,7 @@ pub enum Token<'a> {
     Include(PathBuf, VecDeque<Token<'a>>),
 }
 
-pub fn struct_parser<'a>() -> impl Parser<'a, &'a str, Token<'a>, extra::Err<Rich<'a, char>>> {
+fn struct_parser<'a>() -> impl Parser<'a, &'a str, Token<'a>, ParserExtra<'a>> {
     let struct_decl = text::keyword("struct")
         .padded()
         .ignore_then(text::ident().padded())
@@ -75,7 +78,7 @@ pub fn struct_parser<'a>() -> impl Parser<'a, &'a str, Token<'a>, extra::Err<Ric
         .padded()
 }
 
-pub fn variants_parser<'a>() -> impl Parser<'a, &'a str, Vec<&'a str>, extra::Err<Rich<'a, char>>> {
+fn variants_parser<'a>() -> impl Parser<'a, &'a str, Vec<&'a str>, ParserExtra<'a>> {
     text::ident()
         .padded()
         .separated_by(just(','))
@@ -84,7 +87,7 @@ pub fn variants_parser<'a>() -> impl Parser<'a, &'a str, Vec<&'a str>, extra::Er
         .delimited_by(just('{').padded(), just('}').padded())
 }
 
-pub fn enum_parser<'a>() -> impl Parser<'a, &'a str, Token<'a>, extra::Err<Rich<'a, char>>> {
+fn enum_parser<'a>() -> impl Parser<'a, &'a str, Token<'a>, ParserExtra<'a>> {
     let enum_decl = text::keyword("enum")
         .padded()
         .ignore_then(text::ident().padded())
@@ -106,7 +109,7 @@ pub fn enum_parser<'a>() -> impl Parser<'a, &'a str, Token<'a>, extra::Err<Rich<
         .padded()
 }
 
-pub fn union_parser<'a>() -> impl Parser<'a, &'a str, Token<'a>, extra::Err<Rich<'a, char>>> {
+fn union_parser<'a>() -> impl Parser<'a, &'a str, Token<'a>, ParserExtra<'a>> {
     let union_decl = text::keyword("union")
         .padded()
         .ignore_then(text::ident().padded())
@@ -128,16 +131,18 @@ pub fn union_parser<'a>() -> impl Parser<'a, &'a str, Token<'a>, extra::Err<Rich
         .padded()
 }
 
-pub fn include_parser<'a>(
-    file_path: Arc<PathBuf>,
-) -> impl Parser<'a, &'a str, Token<'a>, extra::Err<Rich<'a, char>>> {
+fn include_parser<'a>() -> impl Parser<'a, &'a str, Token<'a>, ParserExtra<'a>> {
     let path_content = any()
         .filter(|c: &char| !c.is_newline())
         .repeated()
         .to_slice()
         .labelled("file path");
-    let path_parser = path_content.try_map(move |path: &'a str, span| {
-        let path = file_path
+    let path_parser = path_content.try_map_with(move |path: &'a str, extra| {
+        let span = extra.span();
+        let state: &mut extra::SimpleState<ParserState<'a, _>> = extra.state();
+
+        let path = state
+            .file_path
             .parent()
             .unwrap_or(&env::current_dir().unwrap_or_default())
             .join(path);
@@ -148,32 +153,60 @@ pub fn include_parser<'a>(
     let include_decl = text::keyword("include")
         .padded()
         .ignore_then(path_parser)
-        .try_map(|path, span| {
-            let include_text: &'static str = fs::read_to_string(&path)
+        .try_map_with(|path, extra| {
+            let span = extra.span();
+            let state: &mut extra::SimpleState<ParserState<'a, _>> = extra.state();
+
+            let include_text = fs::read_to_string(&path)
                 .map(String::leak)
                 .map_err(|e| Rich::custom(span, e))?;
-            let tokenizer = Tokenizer::new(Some(&path), &include_text);
-            let include_tokens = tokenizer.tokens;
 
-            Ok(Token::Include(path, include_tokens))
+            let parser = state.parser.clone();
+
+            parser
+                .parse_with_state(include_text, state)
+                .into_result()
+                .map(|include_tokens| Token::Include(path, include_tokens))
+                .map_err(|mut errs| {
+                    let init = errs.swap_remove(0);
+                    errs.into_iter().fold(init, |acc, err| {
+                        <chumsky::error::Rich<'_, char> as chumsky::error::Error<'_, &'a str>>::merge(
+                            acc, err,
+                        )
+                    })
+                })
         });
 
     include_decl
 }
 
-pub fn parser<'a, C: Container<Token<'a>>>(
-    file_path: Option<Arc<PathBuf>>,
-) -> impl Parser<'a, &'a str, C, extra::Err<Rich<'a, char>>> {
-    let file_path = file_path.unwrap_or_else(|| Arc::new(PathBuf::new()));
-
+fn parser<'a, C: Container<Token<'a>>>() -> impl Parser<'a, &'a str, C, ParserExtra<'a>> {
     let parser = choice((
-        include_parser(file_path),
+        include_parser(),
         struct_parser(),
         enum_parser(),
         union_parser(),
     ));
 
     parser.repeated().collect()
+}
+
+struct ParserState<'a, C: Container<Token<'a>>> {
+    parser: Boxed<'a, 'a, &'a str, C, ParserExtra<'a>>,
+    file_path: Arc<PathBuf>,
+    include_strings: Vec<Arc<String>>,
+}
+impl<'a, C: Container<Token<'a>>> ParserState<'a, C> {
+    fn new(
+        parser: Boxed<'a, 'a, &'a str, C, ParserExtra<'a>>,
+        file_path: Option<Arc<PathBuf>>,
+    ) -> Self {
+        Self {
+            parser,
+            file_path: file_path.unwrap_or_else(|| Arc::new(PathBuf::new())),
+            include_strings: Vec::new(),
+        }
+    }
 }
 
 pub struct Tokenizer<'a> {
@@ -183,7 +216,13 @@ pub struct Tokenizer<'a> {
 impl<'a> Tokenizer<'a> {
     pub fn new(file_path: Option<&Path>, text: &'a str) -> Self {
         let file_path = file_path.map(Path::to_path_buf).map(Arc::new);
-        let (output, errors) = parser(file_path.clone()).parse(text).into_output_errors();
+
+        let parser = parser().boxed();
+        let mut parser_state = ParserState::new(parser.clone(), file_path.clone()).into();
+
+        let (output, errors) = parser
+            .parse_with_state(text, &mut parser_state)
+            .into_output_errors();
 
         let report_source = file_path
             .as_ref()
