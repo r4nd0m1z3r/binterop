@@ -1,0 +1,3 @@
+include union.bintdef
+
+struct Nothing {}

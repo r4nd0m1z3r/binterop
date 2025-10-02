@@ -2,7 +2,7 @@ use ariadne::{Label, Report, ReportKind, Source};
 use chumsky::{container::Container, prelude::*, text::Char};
 use std::{
     collections::VecDeque,
-    env,
+    env, fs,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -20,7 +20,7 @@ pub enum Token<'a> {
     Struct(&'a str, Vec<(&'a str, Type<'a>)>),
     Enum(&'a str, Vec<&'a str>),
     Union(&'a str, Vec<&'a str>),
-    Include(PathBuf, Vec<Token<'a>>),
+    Include(PathBuf, VecDeque<Token<'a>>),
 }
 
 pub fn struct_parser<'a>() -> impl Parser<'a, &'a str, Token<'a>, extra::Err<Rich<'a, char>>> {
@@ -128,7 +128,9 @@ pub fn union_parser<'a>() -> impl Parser<'a, &'a str, Token<'a>, extra::Err<Rich
         .padded()
 }
 
-pub fn include_parser<'a>(file_path: Arc<PathBuf>) -> impl Parser<'a, &'a str, Token<'a>, extra::Err<Rich<'a, char>>> {
+pub fn include_parser<'a>(
+    file_path: Arc<PathBuf>,
+) -> impl Parser<'a, &'a str, Token<'a>, extra::Err<Rich<'a, char>>> {
     let path_content = any()
         .filter(|c: &char| !c.is_newline())
         .repeated()
@@ -146,7 +148,15 @@ pub fn include_parser<'a>(file_path: Arc<PathBuf>) -> impl Parser<'a, &'a str, T
     let include_decl = text::keyword("include")
         .padded()
         .ignore_then(path_parser)
-        .map(|path| Token::Include(path, Vec::new()));
+        .try_map(|path, span| {
+            let include_text: &'static str = fs::read_to_string(&path)
+                .map(String::leak)
+                .map_err(|e| Rich::custom(span, e))?;
+            let tokenizer = Tokenizer::new(Some(&path), &include_text);
+            let include_tokens = tokenizer.tokens;
+
+            Ok(Token::Include(path, include_tokens))
+        });
 
     include_decl
 }
@@ -155,7 +165,7 @@ pub fn parser<'a, C: Container<Token<'a>>>(
     file_path: Option<Arc<PathBuf>>,
 ) -> impl Parser<'a, &'a str, C, extra::Err<Rich<'a, char>>> {
     let file_path = file_path.unwrap_or_else(|| Arc::new(PathBuf::new()));
-    
+
     let parser = choice((
         include_parser(file_path),
         struct_parser(),
