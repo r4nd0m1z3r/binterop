@@ -1,8 +1,9 @@
 use ariadne::{Label, Report, ReportKind, Source};
 use chumsky::{container::Container, prelude::*, text::Char};
 use std::{
+    cell::{Cell, RefCell},
     collections::VecDeque,
-    env, fs,
+    env, fs, io,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -157,9 +158,8 @@ fn include_parser<'a>() -> impl Parser<'a, &'a str, Token<'a>, ParserExtra<'a>> 
             let span = extra.span();
             let state: &mut extra::SimpleState<ParserState<'a, _>> = extra.state();
 
-            let include_text = fs::read_to_string(&path)
-                .map(String::leak)
-                .map_err(|e| Rich::custom(span, e))?;
+            let include = state.include(&path).map_err(|e| Rich::custom(span, e))?;
+            let include_text = include.text;
 
             let parser = state.parser.clone();
 
@@ -167,13 +167,9 @@ fn include_parser<'a>() -> impl Parser<'a, &'a str, Token<'a>, ParserExtra<'a>> 
                 .parse_with_state(include_text, state)
                 .into_result()
                 .map(|include_tokens| Token::Include(path, include_tokens))
-                .map_err(|mut errs| {
-                    let init = errs.swap_remove(0);
-                    errs.into_iter().fold(init, |acc, err| {
-                        <chumsky::error::Rich<'_, char> as chumsky::error::Error<'_, &'a str>>::merge(
-                            acc, err,
-                        )
-                    })
+                .map_err(|errors| {
+                    include.add_errors(errors);
+                    Rich::custom(span, "error within included file")
                 })
         });
 
@@ -191,21 +187,66 @@ fn parser<'a, C: Container<Token<'a>>>() -> impl Parser<'a, &'a str, C, ParserEx
     parser.repeated().collect()
 }
 
+struct Include<'a> {
+    path: PathBuf,
+    text: &'a str,
+    errors: Cell<Vec<Rich<'a, char>>>,
+}
+impl<'a> Include<'a> {
+    fn new(path: PathBuf, text: &'a str) -> Self {
+        Self {
+            path,
+            text,
+            errors: Cell::default(),
+        }
+    }
+
+    fn add_errors(&self, errors: Vec<Rich<'a, char>>) {
+        self.errors.set(errors);
+    }
+}
+impl<'a> Drop for Include<'a> {
+    fn drop(&mut self) {
+        // This whole thing is needed since chumsky doesn't support arc'ed strings
+        // SAFETY: We're reconstructing the string from leaked str which was previously shrinked to length
+        // TODO: We probably should implement our custom arc'ed string type that should implement Input
+        let _ = unsafe {
+            String::from_raw_parts(
+                self.text.as_ptr().cast_mut(),
+                self.text.len(),
+                self.text.len(),
+            )
+        };
+    }
+}
+
 struct ParserState<'a, C: Container<Token<'a>>> {
     parser: Boxed<'a, 'a, &'a str, C, ParserExtra<'a>>,
     file_path: Arc<PathBuf>,
-    include_strings: Vec<Arc<String>>,
+    includes: Vec<Arc<Include<'a>>>,
 }
 impl<'a, C: Container<Token<'a>>> ParserState<'a, C> {
     fn new(
         parser: Boxed<'a, 'a, &'a str, C, ParserExtra<'a>>,
         file_path: Option<Arc<PathBuf>>,
-    ) -> Self {
-        Self {
+    ) -> extra::SimpleState<Self> {
+        extra::SimpleState(Self {
             parser,
             file_path: file_path.unwrap_or_else(|| Arc::new(PathBuf::new())),
-            include_strings: Vec::new(),
-        }
+            includes: Vec::new(),
+        })
+    }
+
+    fn include<'b>(&'b mut self, path: &Path) -> Result<Arc<Include<'a>>, io::Error> {
+        let mut text = fs::read_to_string(&path)?;
+        text.shrink_to_fit();
+        let text = text.leak();
+
+        let include = Include::new(path.to_path_buf(), text);
+        self.includes.push(Arc::new(include));
+        let include = self.includes.last().cloned().unwrap();
+
+        Ok(include)
     }
 }
 
@@ -218,25 +259,45 @@ impl<'a> Tokenizer<'a> {
         let file_path = file_path.map(Path::to_path_buf).map(Arc::new);
 
         let parser = parser().boxed();
-        let mut parser_state = ParserState::new(parser.clone(), file_path.clone()).into();
+        let mut state = ParserState::new(parser.clone(), file_path.clone());
 
         let (output, errors) = parser
-            .parse_with_state(text, &mut parser_state)
+            .parse_with_state(text, &mut state)
             .into_output_errors();
 
+        let include_errors = state.includes.iter().flat_map(|include| {
+            let source_path = include.path.to_str().unwrap();
+
+            include
+                .errors
+                .take()
+                .into_iter()
+                .map(|err| (source_path, err, include.text))
+                .collect::<Vec<_>>()
+        });
         let report_source = file_path
             .as_ref()
             .map(|path| path.to_str().unwrap_or("default"))
             .unwrap_or("default");
-        let reports = errors.into_iter().map(|err| {
-            let span = (report_source, err.span().into_range());
+        let reports = errors
+            .into_iter()
+            .map(|err| (report_source, err, text))
+            .chain(include_errors)
+            .map(|(report_path, err, source)| {
+                let span = (report_path, err.span().into_range());
 
-            Report::build(ReportKind::Error, span.clone())
-                .with_label(Label::new(span).with_message(err.reason()))
-                .finish()
+                (
+                    report_path,
+                    source,
+                    Report::build(ReportKind::Error, span.clone())
+                        .with_label(Label::new(span).with_message(err.reason()))
+                        .finish(),
+                )
+            });
+
+        reports.for_each(|(report_path, source, report)| {
+            report.print((report_path, Source::from(source))).unwrap();
         });
-
-        reports.for_each(|report| report.print((report_source, Source::from(text))).unwrap());
 
         dbg!(&output);
 
