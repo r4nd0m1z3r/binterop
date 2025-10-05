@@ -1,0 +1,36 @@
+struct PlayerState {
+health: u32,
+mana: u32,
+
+position: Vec2,
+team_color: Color,
+
+inventory_ids: [u64: 32],
+
+target_id: u64*,
+active_quest: Quest**,
+
+waypoints: <Vec2>,
+
+path_nodes: [Vec2*: 64],
+
+texture_data: [u8: 1024]*,
+
+particle_systems: <[Vec2: 16]*>,
+
+is_online: bool,
+
+}
+
+enum PlayerStatus {
+Idle,
+Walking,
+InCombat,
+Dead,
+}
+
+union InputType {
+Keyboard,
+Mouse,
+Controller,
+}

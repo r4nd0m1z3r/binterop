@@ -14,9 +14,9 @@ type ParserExtra<'a> =
 #[derive(Debug)]
 pub enum Type<'a> {
     Named(&'a str),
-    Array(&'a str, usize),
-    Vector(&'a str),
-    Pointer(&'a str),
+    Array(Box<Type<'a>>, usize),
+    Vector(Box<Type<'a>>),
+    Pointer(Box<Type<'a>>),
 }
 
 #[derive(Debug)]
@@ -33,23 +33,36 @@ fn struct_parser<'a>() -> impl Parser<'a, &'a str, Token<'a>, ParserExtra<'a>> {
         .ignore_then(text::ident().padded())
         .map(|name| Token::Struct(name, Vec::new()));
 
-    let named_parser = text::ident().map(Type::Named);
-    let array_parser = just('[')
-        .padded()
-        .ignore_then(text::ident())
-        .then_ignore(just(':').padded())
-        .then(text::int(10))
-        .then_ignore(just(']').padded())
-        .try_map(|(inner_type_name, size): (&str, &str), span| {
-            let size = size.parse().map_err(|e| Rich::custom(span, e))?;
-            Ok(Type::Array(inner_type_name, size))
-        });
-    let vector_parser = text::ident()
-        .delimited_by(just('<').padded(), just('>').padded())
-        .map(Type::Vector);
-    let pointer_parser = text::ident().then_ignore(just('*')).map(Type::Pointer);
+    let type_parser = recursive(|type_parser| {
+        let named_parser = text::ident().map(Type::Named);
 
-    let type_parser = choice((array_parser, vector_parser, pointer_parser, named_parser));
+        let array_parser = type_parser
+            .clone()
+            .padded()
+            .then_ignore(just(':').padded())
+            .then(text::int(10))
+            .delimited_by(just('[').padded(), just(']').padded())
+            .try_map(|(inner_type, size): (Type, &str), span| {
+                let size = size.parse().map_err(|e| Rich::custom(span, e))?;
+                Ok(Type::Array(Box::new(inner_type), size))
+            });
+
+        let vector_parser = type_parser
+            .clone()
+            .padded()
+            .delimited_by(just('<').padded(), just('>').padded())
+            .map(|inner_type| Type::Vector(Box::new(inner_type)));
+
+        let base_type_parser = choice((array_parser, vector_parser, named_parser));
+
+        base_type_parser.then(just('*').padded().repeated().count())
+            .map(|(mut ty, count)| {
+                for _ in 0..count {
+                    ty = Type::Pointer(Box::new(ty));
+                }
+                ty
+            })
+    });
 
     let field = text::ident()
         .padded()
