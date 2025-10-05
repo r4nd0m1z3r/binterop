@@ -219,20 +219,6 @@ impl<'a> Include<'a> {
         self.errors.set(errors);
     }
 }
-impl<'a> Drop for Include<'a> {
-    fn drop(&mut self) {
-        // This whole thing is needed since chumsky doesn't support arc'ed strings
-        // SAFETY: We're reconstructing the string from leaked str which was previously shrinked to length
-        // TODO: We probably should implement our custom arc'ed string type that should implement Input
-        let _ = unsafe {
-            String::from_raw_parts(
-                self.text.as_ptr().cast_mut(),
-                self.text.len(),
-                self.text.len(),
-            )
-        };
-    }
-}
 
 struct ParserState<'a, C: Container<Token<'a>>> {
     parser: Boxed<'a, 'a, &'a str, C, ParserExtra<'a>>,
@@ -267,6 +253,7 @@ impl<'a, C: Container<Token<'a>>> ParserState<'a, C> {
 pub struct Tokenizer<'a> {
     file_path: Option<Arc<PathBuf>>,
     tokens: VecDeque<Token<'a>>,
+    failed: bool,
 }
 impl<'a> Tokenizer<'a> {
     pub fn new(file_path: Option<&Path>, text: &'a str) -> Self {
@@ -278,6 +265,7 @@ impl<'a> Tokenizer<'a> {
         let (output, errors) = parser
             .parse_with_state(text, &mut state)
             .into_output_errors();
+        let failed = !errors.is_empty();
 
         let include_errors = state.includes.iter().flat_map(|include| {
             let source_path = include.path.to_str().unwrap();
@@ -316,10 +304,15 @@ impl<'a> Tokenizer<'a> {
         Self {
             file_path,
             tokens: output.unwrap_or_default(),
+            failed,
         }
     }
 
-    pub fn tokens(&mut self) -> impl Iterator<Item = &Token<'a>> {
-        self.tokens.iter()
+    pub fn tokens(&mut self) -> Option<impl Iterator<Item = &Token<'a>>> {
+        if self.failed {
+            None
+        } else {
+            Some(self.tokens.iter())
+        }
     }
 }

@@ -16,7 +16,8 @@ pub fn generate_schema(
     optimizations: SchemaOptimizations,
 ) -> Result<Schema, String> {
     let mut tokenizer = Tokenizer::new(file_path.as_ref().map(PathBuf::as_path), definition_text);
-    let mut schema = generator::generate_schema(tokenizer.tokens())?;
+    let mut schema =
+        generator::generate_schema(tokenizer.tokens().ok_or("Failed to tokenize input")?)?;
 
     optimize_schema(&mut schema, optimizations);
 
