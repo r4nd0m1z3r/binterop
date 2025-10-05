@@ -15,10 +15,15 @@ pub fn generate_schema(
     definition_text: &str,
     optimizations: SchemaOptimizations,
 ) -> Result<Schema, String> {
-    let mut chumsky = crate::tokenizer_chumsky::Tokenizer::new(
+    let mut chumsky_tokenizer = crate::tokenizer_chumsky::Tokenizer::new(
         file_path.as_ref().map(PathBuf::as_path),
         definition_text,
     );
+    let mut chumsky_schema = crate::generator_chumsky::generate_schema(chumsky_tokenizer.tokens())?;
+    optimize_schema(&mut chumsky_schema, optimizations);
+    let schema_json = serialize_schema(&chumsky_schema)
+        .map_err(|err| format!("Failed to serialize chumsky schema! Err: {err}"))?;
+    fs::write("chumsky_gen.json", schema_json).unwrap();
 
     let mut tokenizer = Tokenizer::new(file_path, definition_text);
     let mut generator = Generator::default();

@@ -55,7 +55,8 @@ fn struct_parser<'a>() -> impl Parser<'a, &'a str, Token<'a>, ParserExtra<'a>> {
 
         let base_type_parser = choice((array_parser, vector_parser, named_parser));
 
-        base_type_parser.then(just('*').padded().repeated().count())
+        base_type_parser
+            .then(just('*').padded().repeated().count())
             .map(|(mut ty, count)| {
                 for _ in 0..count {
                     ty = Type::Pointer(Box::new(ty));
@@ -320,7 +321,7 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
-    pub fn yield_token(&mut self) -> Option<Token<'a>> {
-        self.tokens.pop_front()
+    pub fn tokens(&mut self) -> impl Iterator<Item = &Token<'a>> {
+        self.tokens.iter()
     }
 }

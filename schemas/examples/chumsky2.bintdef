@@ -1,3 +1,19 @@
+enum Color {
+    Red,
+    Green,
+    Blue,
+}
+
+struct Vec2 {
+    x: f32,
+    y: f32,
+}
+
+struct Quest {}
+struct Keyboard {}
+struct Mouse {}
+struct Controller {}
+
 struct PlayerState {
 health: u32,
 mana: u32,

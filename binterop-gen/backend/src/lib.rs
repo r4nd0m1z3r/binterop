@@ -9,6 +9,7 @@ static GENERATOR_DEBUG: LazyLock<bool> = LazyLock::new(|| {
 });
 
 pub mod generator;
+pub mod generator_chumsky;
 pub mod helpers;
 pub mod language_generators;
 pub mod optimization;
