@@ -1,4 +1,4 @@
-use crate::generator::Generator;
+use crate::generator;
 use crate::language_generators::go::GoLanguageGenerator;
 use crate::language_generators::nim::NimLanguageGenerator;
 use crate::language_generators::rust::RustLanguageGenerator;
@@ -15,13 +15,8 @@ pub fn generate_schema(
     definition_text: &str,
     optimizations: SchemaOptimizations,
 ) -> Result<Schema, String> {
-    let mut tokenizer = Tokenizer::new(file_path, definition_text);
-    let mut generator = Generator::default();
-
-    while let Some(token) = tokenizer.yield_token()? {
-        generator.feed(token)?
-    }
-    let mut schema = generator.output();
+    let mut tokenizer = Tokenizer::new(file_path.as_ref().map(PathBuf::as_path), definition_text);
+    let mut schema = generator::generate_schema(tokenizer.tokens())?;
 
     optimize_schema(&mut schema, optimizations);
 

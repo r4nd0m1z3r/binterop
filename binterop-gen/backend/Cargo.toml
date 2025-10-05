@@ -4,7 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+ariadne = "0.5.1"
 binterop = { path = "../../binterop" }
 case = "1.0.0"
+chumsky = "0.11.1"
 permutation = "0.4.1"
 serde_json = "1.0.113"

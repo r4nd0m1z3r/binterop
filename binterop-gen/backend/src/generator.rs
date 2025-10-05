@@ -1,308 +1,160 @@
-use crate::tokenizer::Token;
-use crate::GENERATOR_DEBUG;
-use binterop::field::Field;
-use binterop::schema::Schema;
-use binterop::types::array::ArrayType;
-use binterop::types::data::DataType;
-use binterop::types::function::{Arg, FunctionType};
-use binterop::types::pointer::PointerType;
-use binterop::types::primitives::INTEGER_PRIMITIVE_NAMES;
-use binterop::types::r#enum::EnumType;
-use binterop::types::union::UnionType;
-use binterop::types::vector::VectorType;
-use binterop::types::{Type, TypeData};
+use binterop::{
+    field::Field,
+    schema::Schema,
+    types::{
+        array::ArrayType, data::DataType, pointer::PointerType, primitives::PRIMITIVES,
+        r#enum::EnumType, union::UnionType, vector::VectorType, Type, TypeData,
+    },
+};
 
-#[derive(Debug)]
-pub struct Generator {
-    currently_defining: Option<Type>,
-    should_create_type: bool,
-    next_is_repr_type: bool,
-    next_is_fn_return_type: bool,
-    current_index: usize,
-    current_offset: usize,
-    schema: Schema,
+use crate::{tokenizer, tokenizer::Token};
+
+fn lookup_type_data(schema: &mut Schema, r#type: &tokenizer::Type) -> Option<TypeData> {
+    match r#type {
+        tokenizer::Type::Named(name) => {
+            if let Some(index) = PRIMITIVES.index_of(name) {
+                return schema.type_data(index, Type::Primitive).ok();
+            }
+            if let Some(index) = schema.types.iter().position(|r#type| &r#type.name == name) {
+                return schema.type_data(index, Type::Data).ok();
+            }
+            if let Some(index) = schema.enums.iter().position(|r#type| &r#type.name == name) {
+                return schema.type_data(index, Type::Enum).ok();
+            }
+            if let Some(index) = schema.unions.iter().position(|r#type| &r#type.name == name) {
+                return schema.type_data(index, Type::Union).ok();
+            }
+            if let Some(index) = schema
+                .functions
+                .iter()
+                .position(|r#type| &r#type.name == name)
+            {
+                return schema.type_data(index, Type::Function).ok();
+            }
+            if name == &"String" {
+                return schema.type_data(0, Type::String).ok();
+            }
+        }
+        tokenizer::Type::Array(inner_type, size) => {
+            let inner_type_data = lookup_type_data(schema, &inner_type)?;
+            let index = schema
+                .arrays
+                .iter()
+                .position(|array| {
+                    array.inner_type == inner_type_data.r#type
+                        && array.inner_type_index == inner_type_data.index
+                        && array.len == *size
+                })
+                .or_else(|| {
+                    let index = schema.arrays.len();
+                    schema.arrays.push(ArrayType::new(
+                        inner_type_data.r#type,
+                        inner_type_data.index,
+                        *size,
+                    ));
+                    Some(index)
+                })?;
+
+            return schema.type_data(index, Type::Array).ok();
+        }
+        tokenizer::Type::Vector(inner_type) => {
+            let inner_type_data = lookup_type_data(schema, &inner_type)?;
+            let index = schema
+                .vectors
+                .iter()
+                .position(|vector| {
+                    vector.inner_type == inner_type_data.r#type
+                        && vector.inner_type_index == inner_type_data.index
+                })
+                .or_else(|| {
+                    let index = schema.vectors.len();
+                    schema.vectors.push(VectorType::new(
+                        inner_type_data.r#type,
+                        inner_type_data.index,
+                    ));
+                    Some(index)
+                })?;
+
+            return schema.type_data(index, Type::Vector).ok();
+        }
+        tokenizer::Type::Pointer(pointee_type) => {
+            let pointee_type_data = lookup_type_data(schema, &pointee_type)?;
+            let index = schema
+                .pointers
+                .iter()
+                .position(|pointer| {
+                    pointer.inner_type == pointee_type_data.r#type
+                        && pointer.inner_type_index == pointee_type_data.index
+                })
+                .or_else(|| {
+                    let index = schema.pointers.len();
+                    schema.pointers.push(PointerType::new(
+                        pointee_type_data.r#type,
+                        pointee_type_data.index,
+                    ));
+                    Some(index)
+                })?;
+
+            return schema.type_data(index, Type::Pointer).ok();
+        }
+    }
+
+    None
 }
-impl Default for Generator {
-    fn default() -> Self {
-        Self {
-            currently_defining: None,
-            should_create_type: false,
-            next_is_repr_type: false,
-            next_is_fn_return_type: false,
-            current_index: 0,
-            current_offset: 0,
-            schema: Schema {
-                is_packed: true,
-                ..Default::default()
-            },
-        }
-    }
-}
-impl Generator {
-    fn process_ident(&mut self, ident: &str) -> Result<(), String> {
-        if self.currently_defining.is_none() {
-            return Err("Got ident while not defining anything!".to_string());
-        }
 
-        if self.should_create_type {
-            match self.currently_defining.as_ref().unwrap() {
-                Type::Primitive | Type::Array | Type::Vector | Type::String | Type::Pointer => {}
-                Type::Data => {
-                    self.current_index = self.schema.types.len();
-                    self.schema.types.push(DataType::default_with_name(ident))
-                }
-                Type::Enum => {
-                    self.current_index = self.schema.enums.len();
-                    self.schema.enums.push(EnumType::default_with_name(ident))
-                }
-                Type::Union => {
-                    self.current_index = self.schema.unions.len();
-                    self.schema.unions.push(UnionType::default_with_name(ident))
-                }
-                Type::Function => {
-                    self.current_index = self.schema.functions.len();
-                    self.schema
-                        .functions
-                        .push(FunctionType::default_with_name(ident))
-                }
-            }
+pub fn generate_schema<'a>(tokens: impl Iterator<Item = &'a Token<'a>>) -> Result<Schema, String> {
+    let mut schema = Schema::default();
 
-            self.should_create_type = false;
-        } else {
-            match self.currently_defining.as_ref().unwrap() {
-                Type::Primitive | Type::Array | Type::Vector | Type::String | Type::Pointer => {}
-                Type::Data => self.schema.types[self.current_index]
-                    .fields
-                    .push(Field::default_with_name(ident)),
-                Type::Enum => self.schema.enums[self.current_index]
-                    .variants
-                    .push(ident.to_string()),
-                Type::Union => {
-                    let r#type = self
-                        .schema
-                        .type_data_by_name(ident)
-                        .map(|type_data| (type_data.index, type_data.r#type))?;
-                    self.schema.unions[self.current_index]
-                        .possible_types
-                        .push(r#type)
-                }
-                Type::Function => {
-                    let current_fn = &mut self.schema.functions[self.current_index];
-
-                    current_fn.args.push(Arg::new(ident.to_string(), None));
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    fn process_pointer(&mut self, name: &str) -> Result<usize, String> {
-        let TypeData { index, r#type, .. } = self
-            .schema
-            .type_data_by_name(name.strip_suffix('*').unwrap())?;
-        let pointer_type = PointerType::new(r#type, index);
-
-        let new_field = self.schema.types[self.current_index]
-            .fields
-            .last_mut()
-            .unwrap();
-        new_field.r#type = Type::Pointer;
-        new_field.type_index = self.schema.pointers.len();
-        new_field.offset = self.current_offset;
-
-        self.schema.pointers.push(pointer_type);
-
-        Ok(PointerType::size())
-    }
-
-    fn process_array(&mut self, name: &str) -> Result<usize, String> {
-        let separator_index = name
-            .chars()
-            .position(|ch| ch == ':')
-            .ok_or("Expected array type but failed to find separator!")?;
-
-        let TypeData {
-            index,
-            r#type,
-            size: inner_type_size,
-            ..
-        } = self.schema.type_data_by_name(&name[1..separator_index])?;
-
-        let array_len = name[separator_index + 1..name.len() - 1]
-            .parse::<usize>()
-            .map_err(|err| format!("Failed to parse array len! Error: {err:?}"))?;
-
-        let array_type = ArrayType::new(r#type, index, array_len);
-
-        let new_field = self.schema.types[self.current_index]
-            .fields
-            .last_mut()
-            .unwrap();
-        new_field.r#type = Type::Array;
-        new_field.type_index = self.schema.arrays.len();
-        new_field.offset = self.current_offset;
-
-        self.schema.arrays.push(array_type);
-
-        Ok(inner_type_size)
-    }
-
-    fn process_vector(&mut self, name: &str) -> Result<usize, String> {
-        let TypeData { index, r#type, .. } =
-            self.schema.type_data_by_name(&name[1..name.len() - 1])?;
-
-        let ptr_type = PointerType::new(r#type, index);
-        self.schema.pointers.push(ptr_type);
-
-        let new_field = self.schema.types[self.current_index]
-            .fields
-            .last_mut()
-            .unwrap();
-        new_field.r#type = Type::Vector;
-        new_field.type_index = self.schema.vectors.len();
-        new_field.offset = self.current_offset;
-
-        let vector_type = VectorType::new(r#type, index);
-        self.schema.vectors.push(vector_type);
-
-        Ok(VectorType::size())
-    }
-
-    fn process_field(&mut self, name: &str) -> Result<usize, String> {
-        let TypeData {
-            index,
-            r#type,
-            size,
-            ..
-        } = self.schema.type_data_by_name(name)?;
-
-        let new_field = self.schema.types[self.current_index]
-            .fields
-            .last_mut()
-            .unwrap();
-        new_field.r#type = r#type;
-        new_field.type_index = index;
-        new_field.offset = self.current_offset;
-
-        Ok(size)
-    }
-
-    fn process_function(&mut self, name: &str) -> Result<usize, String> {
-        let r#type = self.schema.type_data_by_name(name)?;
-
-        if self.next_is_fn_return_type {
-            self.next_is_fn_return_type = false;
-            self.currently_defining = None;
-
-            self.schema.functions[self.current_index].return_type = Some(r#type);
-        } else {
-            let arg_type_data = self.schema.type_data_by_name(name)?;
-            let current_fn = &mut self.schema.functions[self.current_index];
-
-            if let Some(arg) = current_fn.args.last_mut() {
-                arg.r#type = Some(arg_type_data);
-            }
-        }
-
-        Ok(FunctionType::size())
-    }
-
-    fn process_type(&mut self, name: &str) -> Result<(), String> {
-        if (self.currently_defining == Some(Type::Enum)
-            || self.currently_defining == Some(Type::Union))
-            && !INTEGER_PRIMITIVE_NAMES.contains(&name)
-        {
-            return Err(format!("{name:?} cannot represent enum state since it was not found in integer primitive list!\n\tAvailable integer primitives: {INTEGER_PRIMITIVE_NAMES:?}"));
-        }
-
-        let size = if self.currently_defining == Some(Type::Function) {
-            self.process_function(name)?
-        } else if name.ends_with('*') {
-            self.process_pointer(name)?
-        } else if name.starts_with('[') && name.ends_with(']') {
-            self.process_array(name)?
-        } else if name.starts_with('<') && name.ends_with('>') {
-            self.process_vector(name)?
-        } else {
-            let currently_defined_type = &self.schema.types[self.current_index];
-
-            if name == currently_defined_type.name {
-                currently_defined_type
-                    .fields
-                    .iter()
-                    .map(|field| field.size(&self.schema))
-                    .sum()
-            } else {
-                self.process_field(name)?
-            }
-        };
-
-        self.current_offset += size;
-
-        Ok(())
-    }
-
-    pub fn feed(&mut self, token: Token) -> Result<(), String> {
-        if *GENERATOR_DEBUG {
-            eprintln!("{token:?}");
-        }
-
+    for token in tokens {
         match token {
-            Token::Ident(ident) => {
-                if self.next_is_repr_type {
-                    self.feed(Token::Type(ident.clone()))?;
-                } else {
-                    self.process_ident(&ident)?;
+            Token::Struct(name, fields) => {
+                let mut data_type = DataType::default_with_name(name);
+                let mut current_offset = 0;
+
+                for (name, r#type) in fields {
+                    let type_data = lookup_type_data(&mut schema, &r#type)
+                        .ok_or(format!("Failed to lookup type {type:?} for field {name}"))?;
+
+                    let field =
+                        Field::new(name, type_data.r#type, type_data.index, current_offset, 0);
+                    current_offset += field.size(&schema);
+
+                    data_type.fields.push(field);
                 }
 
-                self.next_is_repr_type = match self.currently_defining {
-                    Some(Type::Enum) => {
-                        !self.should_create_type
-                            && self.schema.enums[self.current_index].variants.is_empty()
-                    }
-                    Some(Type::Union) => {
-                        !self.should_create_type
-                            && self.schema.unions[self.current_index]
-                                .possible_types
-                                .is_empty()
-                    }
-                    _ => false,
-                };
+                schema.types.push(data_type);
             }
-            Token::DefBegin => {
-                self.next_is_repr_type = false;
+            Token::Enum(name, variants) => {
+                let mut enum_type = EnumType::default_with_name(name);
+                enum_type.variants = variants.iter().map(|variant| variant.to_string()).collect();
+
+                schema.enums.push(enum_type);
             }
-            Token::DefEnd => {
-                self.currently_defining = None;
-                self.current_offset = 0;
+            Token::Union(name, variants) => {
+                let mut union_type = UnionType::default_with_name(name);
+                let possible_types = variants
+                    .into_iter()
+                    .map(|variant| {
+                        let variant_type_data =
+                            lookup_type_data(&mut schema, &tokenizer::Type::Named(variant)).ok_or(
+                                format!("Failed to lookup type named {variant} in union {name}"),
+                            )?;
+
+                        Ok((variant_type_data.index, variant_type_data.r#type))
+                    })
+                    .collect::<Result<Vec<_>, String>>()?;
+
+                union_type.possible_types = possible_types;
+
+                schema.unions.push(union_type);
             }
-            Token::Struct => {
-                self.currently_defining = Some(Type::Data);
-                self.should_create_type = true;
-            }
-            Token::Enum => {
-                self.currently_defining = Some(Type::Enum);
-                self.should_create_type = true;
-            }
-            Token::Union => {
-                self.currently_defining = Some(Type::Union);
-                self.should_create_type = true;
-            }
-            Token::Type(name) => self.process_type(&name)?,
-            Token::Fn => {
-                self.currently_defining = Some(Type::Function);
-                self.should_create_type = true;
-            }
-            Token::FnReturn => {
-                self.next_is_fn_return_type = true;
+            Token::Include(path, tokens) => {
+                let mut include_schema = generate_schema(tokens.iter())
+                    .map_err(|err| format!("Failed to generate schema for {path:?}! Err: {err}"))?;
+                schema.append(&mut include_schema);
             }
         }
-
-        Ok(())
     }
 
-    pub fn output(&mut self) -> Schema {
-        self.schema.clone()
-    }
+    Ok(schema)
 }
