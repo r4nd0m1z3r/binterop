@@ -219,6 +219,18 @@ impl<'a> Include<'a> {
         self.errors.set(errors);
     }
 }
+impl<'a> Drop for Include<'a> {
+    fn drop(&mut self) {
+        // SAFETY: self.text is a leaked string, trimmed to its length
+        let _ = unsafe {
+            String::from_raw_parts(
+                self.text.as_ptr().cast_mut(),
+                self.text.len(),
+                self.text.len(),
+            )
+        };
+    }
+}
 
 struct ParserState<'a, C: Container<Token<'a>>> {
     parser: Boxed<'a, 'a, &'a str, C, ParserExtra<'a>>,
@@ -240,11 +252,9 @@ impl<'a, C: Container<Token<'a>>> ParserState<'a, C> {
     fn include<'b>(&'b mut self, path: &Path) -> Result<Arc<Include<'a>>, io::Error> {
         let mut text = fs::read_to_string(&path)?;
         text.shrink_to_fit();
-        let text = text.leak();
 
-        let include = Include::new(path.to_path_buf(), text);
-        self.includes.push(Arc::new(include));
-        let include = self.includes.last().cloned().unwrap();
+        let include = Arc::new(Include::new(path.to_path_buf(), text.leak()));
+        self.includes.push(include.clone());
 
         Ok(include)
     }
@@ -252,7 +262,8 @@ impl<'a, C: Container<Token<'a>>> ParserState<'a, C> {
 
 pub struct Tokenizer<'a> {
     file_path: Option<Arc<PathBuf>>,
-    tokens: VecDeque<Token<'a>>,
+    state: extra::SimpleState<ParserState<'a, VecDeque<Token<'a>>>>,
+    tokens: Arc<VecDeque<Token<'a>>>,
     failed: bool,
 }
 impl<'a> Tokenizer<'a> {
@@ -303,16 +314,17 @@ impl<'a> Tokenizer<'a> {
 
         Self {
             file_path,
-            tokens: output.unwrap_or_default(),
+            state,
+            tokens: Arc::new(output.unwrap_or_default()),
             failed,
         }
     }
 
-    pub fn tokens(&mut self) -> Option<impl Iterator<Item = &Token<'a>>> {
+    pub fn tokens(&mut self) -> Option<Arc<VecDeque<Token<'a>>>> {
         if self.failed {
             None
         } else {
-            Some(self.tokens.iter())
+            Some(self.tokens.clone())
         }
     }
 }

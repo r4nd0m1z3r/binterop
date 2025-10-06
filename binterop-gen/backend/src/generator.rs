@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 use binterop::{
     field::Field,
     schema::Schema,
@@ -102,7 +104,7 @@ fn lookup_type_data(schema: &mut Schema, r#type: &tokenizer::Type) -> Option<Typ
     None
 }
 
-pub fn generate_schema<'a>(tokens: impl Iterator<Item = &'a Token<'a>>) -> Result<Schema, String> {
+pub fn generate_schema<'a>(tokens: &VecDeque<Token<'a>>) -> Result<Schema, String> {
     let mut schema = Schema::default();
 
     for token in tokens {
@@ -149,7 +151,7 @@ pub fn generate_schema<'a>(tokens: impl Iterator<Item = &'a Token<'a>>) -> Resul
                 schema.unions.push(union_type);
             }
             Token::Include(path, tokens) => {
-                let mut include_schema = generate_schema(tokens.iter())
+                let mut include_schema = generate_schema(tokens)
                     .map_err(|err| format!("Failed to generate schema for {path:?}! Err: {err}"))?;
                 schema.append(&mut include_schema);
             }
