@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 phf = { version = "0.11.2", features = ["macros"] }
 serde = { version = "1.0.196", features = ["derive"] }
+smallvec = "1.15.1"

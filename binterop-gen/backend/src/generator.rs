@@ -4,8 +4,8 @@ use binterop::{
     field::Field,
     schema::Schema,
     types::{
-        array::ArrayType, data::DataType, pointer::PointerType, primitives::PRIMITIVES,
-        r#enum::EnumType, union::UnionType, vector::VectorType, Type, TypeData,
+        Type, TypeData, array::ArrayType, data::DataType, r#enum::EnumType, pointer::PointerType,
+        primitives::PRIMITIVES, union::UnionType, vector::VectorType,
     },
 };
 
@@ -107,24 +107,50 @@ fn lookup_type_data(schema: &mut Schema, r#type: &tokenizer::Type) -> Option<Typ
 pub fn generate_schema<'a>(tokens: &VecDeque<Token<'a>>) -> Result<Schema, String> {
     let mut schema = Schema::default();
 
+    let mut recursive_fields_indices = Vec::new();
+
     for token in tokens {
         match token {
-            Token::Struct(name, fields) => {
-                let mut data_type = DataType::default_with_name(name);
+            Token::Struct(struct_name, fields) => {
+                let mut data_type = DataType::default_with_name(struct_name);
                 let mut current_offset = 0;
 
-                for (name, r#type) in fields {
-                    let type_data = lookup_type_data(&mut schema, &r#type)
-                        .ok_or(format!("Failed to lookup type {type:?} for field {name}"))?;
+                for (field_name, r#type) in fields {
+                    let type_data = if let tokenizer::Type::Named(type_name) = r#type
+                        && type_name == struct_name
+                    {
+                        recursive_fields_indices.push(data_type.fields.len());
+                        TypeData::new(schema.types.len(), Type::Data, 0, false)
+                    } else {
+                        lookup_type_data(&mut schema, &r#type).ok_or(format!(
+                            "Failed to lookup type {type:?} for field {field_name}"
+                        ))?
+                    };
 
-                    let field =
-                        Field::new(name, type_data.r#type, type_data.index, current_offset, 0);
-                    current_offset += field.size(&schema);
+                    let field = Field::new(
+                        field_name,
+                        type_data.r#type,
+                        type_data.index,
+                        current_offset,
+                        0,
+                    );
+                    current_offset += type_data.size;
 
                     data_type.fields.push(field);
                 }
-
                 schema.types.push(data_type);
+
+                let data_type = schema.types.last().unwrap();
+                let self_size = data_type.size(&schema);
+                let data_type = schema.types.last_mut().unwrap();
+
+                for &field_index in &recursive_fields_indices {
+                    let next_fields = data_type.fields[field_index + 1..].iter_mut();
+                    for field in next_fields {
+                        field.offset += self_size;
+                    }
+                }
+                recursive_fields_indices.clear();
             }
             Token::Enum(name, variants) => {
                 let mut enum_type = EnumType::default_with_name(name);

@@ -1,4 +1,6 @@
 struct Recursive {
     depth: u32,
-    recursive: Recursive
+    recursive: Recursive,
+    some_float: f32,
+    recursive2: Recursive
 }

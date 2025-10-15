@@ -3,6 +3,7 @@ use crate::schema::Schema;
 use crate::types::primitives::{PrimitiveType, PRIMITIVES};
 use crate::types::Type;
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct DataType {
@@ -67,16 +68,59 @@ impl DataType {
     }
 
     pub fn size(&self, schema: &Schema) -> usize {
-        self.fields
+        let self_indices = self
+            .fields
             .iter()
-            .map(|field| field.size(schema) + field.padding_size)
-            .sum()
+            .enumerate()
+            .filter_map(|(index, field)| {
+                if field.type_name(schema) == self.name {
+                    Some(index)
+                } else {
+                    None
+                }
+            })
+            .collect::<SmallVec<[usize; 32]>>();
+
+        let self_size: usize = self
+            .fields
+            .iter()
+            .enumerate()
+            .filter_map(|(index, field)| {
+                if !self_indices.contains(&index) {
+                    Some(field.size(schema))
+                } else {
+                    None
+                }
+            })
+            .sum();
+
+        self_size + (self_indices.len() * self_size)
     }
 
     pub fn align(&self, schema: &Schema) -> usize {
+        let self_indices = self
+            .fields
+            .iter()
+            .enumerate()
+            .filter_map(|(index, field)| {
+                if field.type_name(schema) == self.name {
+                    Some(index)
+                } else {
+                    None
+                }
+            })
+            .collect::<SmallVec<[usize; 32]>>();
+
         self.fields
             .iter()
-            .map(|field| field.align(schema))
+            .enumerate()
+            .filter_map(|(index, field)| {
+                if !self_indices.contains(&index) {
+                    Some(field.align(schema))
+                } else {
+                    None
+                }
+            })
             .max()
             .unwrap_or(1)
     }
