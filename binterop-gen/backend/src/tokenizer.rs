@@ -25,15 +25,11 @@ pub enum Token<'a> {
     Enum(&'a str, Vec<&'a str>),
     Union(&'a str, Vec<&'a str>),
     Include(PathBuf, VecDeque<Token<'a>>),
+    Function(&'a str, Vec<(&'a str, Type<'a>)>, Option<Type<'a>>),
 }
 
-fn struct_parser<'a>() -> impl Parser<'a, &'a str, Token<'a>, ParserExtra<'a>> {
-    let struct_decl = text::keyword("struct")
-        .padded()
-        .ignore_then(text::ident().padded())
-        .map(|name| Token::Struct(name, Vec::new()));
-
-    let type_parser = recursive(|type_parser| {
+fn type_parser<'a>() -> impl Parser<'a, &'a str, Type<'a>, ParserExtra<'a>> {
+    recursive(|type_parser| {
         let named_parser = text::ident().map(Type::Named);
 
         let array_parser = type_parser
@@ -63,19 +59,34 @@ fn struct_parser<'a>() -> impl Parser<'a, &'a str, Token<'a>, ParserExtra<'a>> {
                 }
                 ty
             })
-    });
+            .padded()
+    })
+}
 
+fn fields_parser<'a>(
+    delimiter_start: char,
+    delimiter_end: char,
+) -> impl Parser<'a, &'a str, Vec<(&'a str, Type<'a>)>, ParserExtra<'a>> {
     let field = text::ident()
         .padded()
         .then_ignore(just(':'))
-        .then(type_parser.padded())
+        .then(type_parser())
         .map(|(field_name, ty)| (field_name, ty));
 
-    let fields = field
+    field
         .separated_by(just(','))
         .allow_trailing()
         .collect()
-        .delimited_by(just('{').padded(), just('}').padded());
+        .delimited_by(just(delimiter_start).padded(), just(delimiter_end).padded())
+}
+
+fn struct_parser<'a>() -> impl Parser<'a, &'a str, Token<'a>, ParserExtra<'a>> {
+    let struct_decl = text::keyword("struct")
+        .padded()
+        .ignore_then(text::ident().padded())
+        .map(|name| Token::Struct(name, Vec::new()));
+
+    let fields = fields_parser('{', '}');
 
     struct_decl
         .then(fields)
@@ -190,12 +201,22 @@ fn include_parser<'a>() -> impl Parser<'a, &'a str, Token<'a>, ParserExtra<'a>> 
     include_decl
 }
 
+fn function_parser<'a>() -> impl Parser<'a, &'a str, Token<'a>, ParserExtra<'a>> {
+    text::keyword("fn")
+        .padded()
+        .ignore_then(text::ident())
+        .then(fields_parser('(', ')'))
+        .then(just("->").padded().ignore_then(type_parser()).or_not())
+        .map(|((name, args), return_type)| Token::Function(name, args, return_type))
+}
+
 fn parser<'a, C: Container<Token<'a>>>() -> impl Parser<'a, &'a str, C, ParserExtra<'a>> {
     let parser = choice((
         include_parser(),
         struct_parser(),
         enum_parser(),
         union_parser(),
+        function_parser(),
     ));
 
     parser.repeated().collect()

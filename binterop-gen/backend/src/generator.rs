@@ -4,8 +4,15 @@ use binterop::{
     field::Field,
     schema::Schema,
     types::{
-        Type, TypeData, array::ArrayType, data::DataType, r#enum::EnumType, pointer::PointerType,
-        primitives::PRIMITIVES, union::UnionType, vector::VectorType,
+        Type, TypeData,
+        array::ArrayType,
+        data::DataType,
+        r#enum::EnumType,
+        function::{Arg, FunctionType},
+        pointer::PointerType,
+        primitives::PRIMITIVES,
+        union::UnionType,
+        vector::VectorType,
     },
 };
 
@@ -180,6 +187,28 @@ pub fn generate_schema<'a>(tokens: &VecDeque<Token<'a>>) -> Result<Schema, Strin
                 let mut include_schema = generate_schema(tokens)
                     .map_err(|err| format!("Failed to generate schema for {path:?}! Err: {err}"))?;
                 schema.append(&mut include_schema);
+            }
+            Token::Function(name, args, return_type) => {
+                let mut function_type = FunctionType::default_with_name(name);
+                
+                function_type.args = args
+                    .into_iter()
+                    .map(|(arg_name, r#type)| {
+                        let type_data = lookup_type_data(&mut schema, r#type).ok_or(
+                        "Failed to lookup type {r#type:?} for arg {arg_name} in function {name}!",
+                    )?;
+                        Ok(Arg::new(arg_name.to_string(), Some(type_data)))
+                    })
+                    .collect::<Result<Vec<_>, String>>()?;
+                if let Some(return_type) = return_type {
+                    function_type.return_type = lookup_type_data(&mut schema, return_type)
+                        .ok_or(
+                            "Failed to lookup type {r#type:?} for return type of function {name}!",
+                        )?
+                        .into();
+                }
+
+                schema.functions.push(function_type);
             }
         }
     }
