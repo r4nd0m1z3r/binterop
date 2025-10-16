@@ -16,7 +16,7 @@ use binterop::{
     },
 };
 
-use crate::{tokenizer, tokenizer::Token};
+use crate::tokenizer::{self, Token};
 
 fn lookup_type_data(
     defined_type_name: &str,

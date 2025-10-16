@@ -282,8 +282,8 @@ impl<'a, C: Container<Token<'a>>> ParserState<'a, C> {
 }
 
 pub struct Tokenizer<'a> {
-    file_path: Option<Arc<PathBuf>>,
-    state: extra::SimpleState<ParserState<'a, VecDeque<Token<'a>>>>,
+    _file_path: Option<Arc<PathBuf>>,
+    _state: extra::SimpleState<ParserState<'a, VecDeque<Token<'a>>>>,
     tokens: Arc<VecDeque<Token<'a>>>,
     failed: bool,
 }
@@ -334,8 +334,8 @@ impl<'a> Tokenizer<'a> {
         });
 
         Self {
-            file_path,
-            state,
+            _file_path: file_path,
+            _state: state,
             tokens: Arc::new(output.unwrap_or_default()),
             failed,
         }

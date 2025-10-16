@@ -1,9 +1,7 @@
-#![feature(vec_into_raw_parts)]
-
 use std::{env, sync::LazyLock};
 
-static GENERATOR_DEBUG: LazyLock<bool> = LazyLock::new(|| {
-    env::var("BINTEROP_GENERATOR_DEBUG")
+static TIME: LazyLock<bool> = LazyLock::new(|| {
+    env::var("BINTEROP_TIME")
         .map(|debug| debug.contains('1'))
         .unwrap_or(false)
 });

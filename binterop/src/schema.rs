@@ -47,7 +47,7 @@ impl Schema {
         }
     }
 
-    pub fn type_name(&self, r#type: Type, index: usize) -> Cow<str> {
+    pub fn type_name(&'_ self, r#type: Type, index: usize) -> Cow<'_, str> {
         match r#type {
             Type::Primitive => Cow::Borrowed(PRIMITIVES.name_of(index).unwrap()),
             Type::Data => Cow::Borrowed(&self.types[index].name),

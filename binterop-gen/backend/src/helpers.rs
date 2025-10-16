@@ -1,25 +1,40 @@
-use crate::generator;
 use crate::language_generators::go::GoLanguageGenerator;
 use crate::language_generators::nim::NimLanguageGenerator;
 use crate::language_generators::rust::RustLanguageGenerator;
 use crate::language_generators::{LanguageGenerator, LanguageGeneratorState};
-use crate::optimization::{optimize_schema, SchemaOptimizations};
+use crate::optimization::{SchemaOptimizations, optimize_schema};
 use crate::tokenizer::Tokenizer;
+use crate::{TIME, generator};
 use binterop::schema::Schema;
 use std::ffi::OsStr;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::time::Instant;
 
 pub fn generate_schema(
     file_path: Option<PathBuf>,
     definition_text: &str,
     optimizations: SchemaOptimizations,
 ) -> Result<Schema, String> {
+    let tokenizer_start = Instant::now();
     let mut tokenizer = Tokenizer::new(file_path.as_ref().map(PathBuf::as_path), definition_text);
-    let tokens = tokenizer.tokens().ok_or("Failed to tokenize input")?;
-    let mut schema = generator::generate_schema(&tokens)?;
+    let tokenizer_end = tokenizer_start.elapsed();
 
+    let tokens = tokenizer.tokens().ok_or("Failed to tokenize input")?;
+
+    let generator_start = Instant::now();
+    let mut schema = generator::generate_schema(&tokens)?;
+    let generator_end = generator_start.elapsed();
+
+    let optimization_start = Instant::now();
     optimize_schema(&mut schema, optimizations);
+    let optimization_end = optimization_start.elapsed();
+
+    if *TIME {
+        println!("Tokenization: {:?}", tokenizer_end);
+        println!("Generation: {:?}", generator_end);
+        println!("Optimization: {:?}", optimization_end);
+    }
 
     Ok(schema)
 }
