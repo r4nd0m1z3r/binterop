@@ -18,9 +18,27 @@ use binterop::{
 
 use crate::{tokenizer, tokenizer::Token};
 
-fn lookup_type_data(schema: &mut Schema, r#type: &tokenizer::Type) -> Option<TypeData> {
+fn lookup_type_data(
+    defined_type_name: &str,
+    defined_type: Type,
+    schema: &mut Schema,
+    r#type: &tokenizer::Type,
+) -> Option<TypeData> {
     match r#type {
         tokenizer::Type::Named(name) => {
+            if *name == defined_type_name {
+                let recursive_type_data = match defined_type {
+                    Type::Data => TypeData::new(schema.types.len(), Type::Data, 0, false),
+                    Type::Union => TypeData::new(schema.unions.len(), Type::Union, 0, false),
+                    Type::Function => {
+                        TypeData::new(schema.functions.len(), Type::Function, 0, false)
+                    }
+                    _ => unreachable!("Cannot define {defined_type:?}!"),
+                };
+
+                return Some(recursive_type_data);
+            }
+
             if let Some(index) = PRIMITIVES.index_of(name) {
                 return schema.type_data(index, Type::Primitive).ok();
             }
@@ -45,7 +63,8 @@ fn lookup_type_data(schema: &mut Schema, r#type: &tokenizer::Type) -> Option<Typ
             }
         }
         tokenizer::Type::Array(inner_type, size) => {
-            let inner_type_data = lookup_type_data(schema, &inner_type)?;
+            let inner_type_data =
+                lookup_type_data(defined_type_name, defined_type, schema, &inner_type)?;
             let index = schema
                 .arrays
                 .iter()
@@ -67,7 +86,8 @@ fn lookup_type_data(schema: &mut Schema, r#type: &tokenizer::Type) -> Option<Typ
             return schema.type_data(index, Type::Array).ok();
         }
         tokenizer::Type::Vector(inner_type) => {
-            let inner_type_data = lookup_type_data(schema, &inner_type)?;
+            let inner_type_data =
+                lookup_type_data(defined_type_name, defined_type, schema, &inner_type)?;
             let index = schema
                 .vectors
                 .iter()
@@ -87,7 +107,8 @@ fn lookup_type_data(schema: &mut Schema, r#type: &tokenizer::Type) -> Option<Typ
             return schema.type_data(index, Type::Vector).ok();
         }
         tokenizer::Type::Pointer(pointee_type) => {
-            let pointee_type_data = lookup_type_data(schema, &pointee_type)?;
+            let pointee_type_data =
+                lookup_type_data(defined_type_name, defined_type, schema, &pointee_type)?;
             let index = schema
                 .pointers
                 .iter()
@@ -123,16 +144,16 @@ pub fn generate_schema<'a>(tokens: &VecDeque<Token<'a>>) -> Result<Schema, Strin
                 let mut current_offset = 0;
 
                 for (field_name, r#type) in fields {
-                    let type_data = if let tokenizer::Type::Named(type_name) = r#type
+                    if let tokenizer::Type::Named(type_name) = r#type
                         && type_name == struct_name
                     {
                         recursive_fields_indices.push(data_type.fields.len());
-                        TypeData::new(schema.types.len(), Type::Data, 0, false)
-                    } else {
-                        lookup_type_data(&mut schema, &r#type).ok_or(format!(
+                    }
+
+                    let type_data = lookup_type_data(struct_name, Type::Data, &mut schema, &r#type)
+                        .ok_or(format!(
                             "Failed to lookup type {type:?} for field {field_name}"
-                        ))?
-                    };
+                        ))?;
 
                     let field = Field::new(
                         field_name,
@@ -170,10 +191,15 @@ pub fn generate_schema<'a>(tokens: &VecDeque<Token<'a>>) -> Result<Schema, Strin
                 let possible_types = variants
                     .into_iter()
                     .map(|variant| {
-                        let variant_type_data =
-                            lookup_type_data(&mut schema, &tokenizer::Type::Named(variant)).ok_or(
-                                format!("Failed to lookup type named {variant} in union {name}"),
-                            )?;
+                        let variant_type_data = lookup_type_data(
+                            name,
+                            Type::Union,
+                            &mut schema,
+                            &tokenizer::Type::Named(variant),
+                        )
+                        .ok_or(format!(
+                            "Failed to lookup type named {variant} in union {name}"
+                        ))?;
 
                         Ok((variant_type_data.index, variant_type_data.r#type))
                     })
@@ -190,22 +216,25 @@ pub fn generate_schema<'a>(tokens: &VecDeque<Token<'a>>) -> Result<Schema, Strin
             }
             Token::Function(name, args, return_type) => {
                 let mut function_type = FunctionType::default_with_name(name);
-                
+
                 function_type.args = args
                     .into_iter()
                     .map(|(arg_name, r#type)| {
-                        let type_data = lookup_type_data(&mut schema, r#type).ok_or(
+                        let type_data = lookup_type_data(name, Type::Function, &mut schema, r#type).ok_or(
                         "Failed to lookup type {r#type:?} for arg {arg_name} in function {name}!",
                     )?;
                         Ok(Arg::new(arg_name.to_string(), Some(type_data)))
                     })
                     .collect::<Result<Vec<_>, String>>()?;
                 if let Some(return_type) = return_type {
-                    function_type.return_type = lookup_type_data(&mut schema, return_type)
-                        .ok_or(
-                            "Failed to lookup type {r#type:?} for return type of function {name}!",
-                        )?
-                        .into();
+                    function_type.return_type = lookup_type_data(
+                        name,
+                        Type::Function,
+                        &mut schema,
+                        return_type,
+                    )
+                    .ok_or("Failed to lookup type {r#type:?} for return type of function {name}!")?
+                    .into();
                 }
 
                 schema.functions.push(function_type);
