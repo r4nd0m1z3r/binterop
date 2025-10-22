@@ -38,13 +38,11 @@ impl<T: Debug> Debug for Vector<T> {
 }
 impl<T: Clone> Clone for Vector<T> {
     fn clone(&self) -> Self {
-        let mut new = Self::with_capacity(self.capacity);
+        let mut new = Vec::with_capacity(self.capacity as usize);
 
-        let new_slice = new.as_mut_slice();
-        new_slice.clone_from_slice(self.as_slice());
-        new.length = self.length;
+        new.extend_from_slice(self.as_slice());
 
-        new
+        new.into()
     }
 }
 impl<T> From<Vec<T>> for Vector<T> {
