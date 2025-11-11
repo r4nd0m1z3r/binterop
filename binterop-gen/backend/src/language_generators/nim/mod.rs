@@ -62,12 +62,12 @@ impl LanguageGenerator for NimLanguageGenerator {
         output_file_name.set_extension("nim");
 
         let output_file =
-            SourceFile::new(output_file_name).contents("import helpers\n\n".to_string());
+            SourceFile::new(output_file_name).contents("import binterop\n\n".to_string());
         state.output_files.push(output_file);
 
-        let helpers_file =
-            SourceFile::new("helpers.nim").contents(include_str!("helpers.nim").to_string());
-        state.output_files.push(helpers_file);
+        let std_file =
+            SourceFile::new("binterop.nim").contents(include_str!("binterop.nim").to_string());
+        state.output_files.push(std_file);
 
         Ok(())
     }

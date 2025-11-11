@@ -12,15 +12,6 @@ type Vector*[T] = object
   len*: uint64
   capacity*: uint64
 
-type String* = Vector[uint8]
-
-proc fromNimString*(str: string): String =
-  return String(
-    pointer: cast[ptr UncheckedArray[uint8]](addr(str[0])),
-    len: len(str).uint64,
-    capacity: len(str).uint64,
-  )
-
 proc newVector*[T](capacity: uint64 = 0): Vector[T] =
   return Vector[T](
     pointer: cast[ptr UncheckedArray[T]](allocShared(capacity * sizeof(T).uint64)),
@@ -28,8 +19,18 @@ proc newVector*[T](capacity: uint64 = 0): Vector[T] =
     capacity: capacity
   )
 
-proc asSeq*[T](vec: var Vector[T]): seq[T] =
-  @vec.pointer.toOpenArray(0, vec.len - 1)
+proc freeVector*[T](vec: sink Vector[T]) =
+  vec.pointer.freeShared()
+
+proc toVector*[T](seq: seq[T]): Vector[T] =
+  var vec = newVector[T](seq.capacity.uint64)
+  for item in seq:
+    vec.push(item)
+    return vec
+
+proc toSeq*[T](vec: sink Vector[T]): seq[T] =
+  let last = vec.len - 1
+  return @(vec.pointer.toOpenArray(0, last.int))
 
 proc reserve*[T](vec: var Vector[T], additional: uint64) =
   vec.capacity += additional
@@ -37,13 +38,30 @@ proc reserve*[T](vec: var Vector[T], additional: uint64) =
 
 proc push*[T](vec: var Vector[T], value: T) =
   if vec.len == vec.capacity:
-    reserve(vec, vec.capacity + 1)
+    vec.reserve(vec.capacity * 2)
   vec.pointer[vec.len] = value
-  inc(vec.len)
+  vec.len += 1
 
 proc pop*[T](vec: var Vector[T]): Option[T] =
   if vec.len == 0:
     return Option[T](isSome: false)
   let value = vec.pointer[vec.len - 1]
-  dec(vec.len)
+  vec.len -= 1
   Option[T](isSome: true, value: value)
+
+type String* = Vector[uint8]
+  
+proc freeString*(str: sink String) =
+  freeVector(str)
+
+proc toBinteropString*(str: string): String =
+  var bytes = newVector[uint8](len(str).uint64)
+
+  for ch in str:
+    bytes.push(ch.uint8)
+
+  return bytes.String
+
+proc toNimString*(str: sink String): string =
+  for ch in str.toSeq():
+    result.add(ch.char)
