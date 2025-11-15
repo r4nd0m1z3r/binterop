@@ -19,6 +19,22 @@ proc newVector*[T](capacity: uint64 = 0): Vector[T] =
     capacity: capacity
   )
 
+iterator items*[T](v: var Vector[T]): var T =
+  for i in 0..<v.len:
+    yield v.pointer[i]
+
+iterator items*[T](v: Vector[T]): T =
+  for i in 0..<v.len:
+    yield v.pointer[i]
+
+iterator pairs*[T](v: Vector[T]): (uint64, T) =
+  for i in 0..<v.len:
+    yield (i, v.pointer[i])
+
+iterator pairs*[T](v: var Vector[T]): (uint64, var T) =
+  for i in 0..<v.len:
+    yield (i, v.pointer[i])
+
 proc freeVector*[T](vec: sink Vector[T]) =
   vec.pointer.freeShared()
 
@@ -28,9 +44,11 @@ proc toVector*[T](seq: seq[T]): Vector[T] =
     vec.push(item)
   vec
 
+template toOpenArray*[T](vec: var Vector[T]): openArray[T] =
+  @(vec.pointer.toOpenArray(0, vec.len.int - 1))
+
 proc toSeq*[T](vec: sink Vector[T]): seq[T] =
-  let last = vec.len - 1
-  @(vec.pointer.toOpenArray(0, last.int))
+  @(vec.toOpenArray)
 
 proc reserve*[T](vec: var Vector[T], additional: uint64) =
   vec.capacity += additional
@@ -50,7 +68,7 @@ proc pop*[T](vec: var Vector[T]): Option[T] =
   Option[T](isSome: true, value: value)
 
 type String* = Vector[uint8]
-  
+
 proc freeString*(str: sink String) =
   freeVector(str)
 
@@ -63,5 +81,5 @@ proc toBinteropString*(str: string): String =
   bytes.String
 
 proc toNimString*(str: sink String): string =
-  for ch in str.toSeq():
+  for ch in str.toOpenArray():
     result.add(ch.char)
