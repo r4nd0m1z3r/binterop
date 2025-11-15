@@ -13,7 +13,7 @@ type Vector*[T] = object
   capacity*: uint64
 
 proc newVector*[T](capacity: uint64 = 0): Vector[T] =
-  return Vector[T](
+  Vector[T](
     pointer: cast[ptr UncheckedArray[T]](allocShared(capacity * sizeof(T).uint64)),
     len: 0,
     capacity: capacity
@@ -26,11 +26,11 @@ proc toVector*[T](seq: seq[T]): Vector[T] =
   var vec = newVector[T](seq.capacity.uint64)
   for item in seq:
     vec.push(item)
-    return vec
+  vec
 
 proc toSeq*[T](vec: sink Vector[T]): seq[T] =
   let last = vec.len - 1
-  return @(vec.pointer.toOpenArray(0, last.int))
+  @(vec.pointer.toOpenArray(0, last.int))
 
 proc reserve*[T](vec: var Vector[T], additional: uint64) =
   vec.capacity += additional
@@ -60,7 +60,7 @@ proc toBinteropString*(str: string): String =
   for ch in str:
     bytes.push(ch.uint8)
 
-  return bytes.String
+  bytes.String
 
 proc toNimString*(str: sink String): string =
   for ch in str.toSeq():
