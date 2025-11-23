@@ -1,3 +1,9 @@
+@[type_id="09261fea-6dad-4109-8b9e-0057f0e56048"]
+enum Team {
+    Red,
+    Blue,
+}
+
 @[type_id="86dac3db-2dc7-40b5-b042-ff211c3b3adc", kind_of="[f32:3]"]
 struct Vector3 {
     x: f32,

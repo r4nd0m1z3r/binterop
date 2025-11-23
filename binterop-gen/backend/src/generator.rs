@@ -185,9 +185,12 @@ pub fn generate_schema<'a>(tokens: &VecDeque<Token<'a>>) -> Result<Schema, Strin
                 }
                 recursive_fields_indices.clear();
             }
-            Token::Enum(name, variants) => {
-                let mut enum_type = EnumType::default_with_name(name);
-                enum_type.variants = variants.iter().map(|variant| variant.to_string()).collect();
+            Token::Enum(attributes, name, variants) => {
+                let enum_type = EnumType {
+                    name: name.to_string(),
+                    variants: variants.iter().map(|variant| variant.to_string()).collect(),
+                    attributes: attributes.to_vec(),
+                };
 
                 schema.enums.push(enum_type);
             }

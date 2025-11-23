@@ -1,1 +1,67 @@
-{"is_packed":false,"types":[{"name":"Vector3","fields":[{"name":"x","type":"Primitive","type_index":9,"offset":0,"padding_size":0,"attributes":[]},{"name":"y","type":"Primitive","type_index":9,"offset":4,"padding_size":0,"attributes":[]},{"name":"z","type":"Primitive","type_index":9,"offset":8,"padding_size":0,"attributes":[]}],"attributes":[["type_id","86dac3db-2dc7-40b5-b042-ff211c3b3adc"],["kind_of","[f32:3]"]]},{"name":"Character","fields":[{"name":"position","type":"Data","type_index":0,"offset":0,"padding_size":0,"attributes":[["type_id","86dac3db-2dc7-40b5-b042-ff211c3b3adc"],["some_attrib","value"]]}],"attributes":[]}],"enums":[],"unions":[],"arrays":[],"pointers":[],"vectors":[],"functions":[]}
+{
+  "is_packed": false,
+  "types": [
+    {
+      "name": "Vector3",
+      "fields": [
+        {
+          "name": "x",
+          "type": "Primitive",
+          "type_index": 9,
+          "offset": 0,
+          "padding_size": 0,
+          "attributes": []
+        },
+        {
+          "name": "y",
+          "type": "Primitive",
+          "type_index": 9,
+          "offset": 4,
+          "padding_size": 0,
+          "attributes": []
+        },
+        {
+          "name": "z",
+          "type": "Primitive",
+          "type_index": 9,
+          "offset": 8,
+          "padding_size": 0,
+          "attributes": []
+        }
+      ],
+      "attributes": [
+        ["type_id", "86dac3db-2dc7-40b5-b042-ff211c3b3adc"],
+        ["kind_of", "[f32:3]"]
+      ]
+    },
+    {
+      "name": "Character",
+      "fields": [
+        {
+          "name": "position",
+          "type": "Data",
+          "type_index": 0,
+          "offset": 0,
+          "padding_size": 0,
+          "attributes": [
+            ["type_id", "86dac3db-2dc7-40b5-b042-ff211c3b3adc"],
+            ["some_attrib", "value"]
+          ]
+        }
+      ],
+      "attributes": []
+    }
+  ],
+  "enums": [
+    {
+      "name": "Team",
+      "variants": ["Red", "Blue"],
+      "attributes": [["type_id", "09261fea-6dad-4109-8b9e-0057f0e56048"]]
+    }
+  ],
+  "unions": [],
+  "arrays": [],
+  "pointers": [],
+  "vectors": [],
+  "functions": []
+}

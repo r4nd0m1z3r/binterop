@@ -5,20 +5,23 @@ use std::mem::{align_of, size_of};
 pub struct EnumType {
     pub name: String,
     pub variants: Vec<String>,
+    pub attributes: Vec<(String, String)>,
 }
 impl Default for EnumType {
     fn default() -> Self {
         Self {
             name: "".to_string(),
-            variants: vec![],
+            variants: Vec::new(),
+            attributes: Vec::new(),
         }
     }
 }
 impl EnumType {
-    pub fn new(name: &str, variants: &[&str]) -> Self {
+    pub fn new(name: &str, variants: &[&str], attributes: &[(String, String)]) -> Self {
         Self {
             name: name.to_string(),
             variants: variants.iter().map(ToString::to_string).collect(),
+            attributes: attributes.to_vec(),
         }
     }
 

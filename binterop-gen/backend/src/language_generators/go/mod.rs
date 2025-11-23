@@ -6,7 +6,7 @@ use std::{
 
 use binterop::{
     schema::Schema,
-    types::{function::FunctionType, r#enum::EnumType, union::UnionType, Type},
+    types::{Type, r#enum::EnumType, function::FunctionType, union::UnionType},
 };
 use case::CaseExt;
 
@@ -154,7 +154,7 @@ impl LanguageGenerator for GoLanguageGenerator {
         state: &mut LanguageGeneratorState,
         union_type: &UnionType,
     ) -> Result<(), String> {
-        let mut variant_enum = EnumType::new(&format!("{}Variant", union_type.name), &[]);
+        let mut variant_enum = EnumType::new(&format!("{}Variant", union_type.name), &[], &[]);
         variant_enum.variants = union_type
             .possible_types
             .iter()

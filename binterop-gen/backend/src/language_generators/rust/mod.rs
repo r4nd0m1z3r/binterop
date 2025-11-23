@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use binterop::{
     schema::Schema,
-    types::{data::DataType, r#enum::EnumType, Type},
+    types::{Type, data::DataType, r#enum::EnumType},
 };
 use case::CaseExt;
 
@@ -58,8 +58,7 @@ impl LanguageGenerator for RustLanguageGenerator {
         let mut output_file_name = PathBuf::from(state.file_name);
         output_file_name.set_extension("rs");
 
-        let output_file =
-            SourceFile::new(output_file_name);
+        let output_file = SourceFile::new(output_file_name);
         state.output_files.push(output_file);
 
         Ok(())
@@ -122,7 +121,7 @@ impl LanguageGenerator for RustLanguageGenerator {
         state: &mut LanguageGeneratorState,
         union_type: &binterop::types::union::UnionType,
     ) -> Result<(), String> {
-        let mut enum_type = EnumType::new(&format!("{}Variant", union_type.name), &[]);
+        let mut enum_type = EnumType::new(&format!("{}Variant", union_type.name), &[], &[]);
         enum_type.variants = union_type
             .possible_types
             .iter()
