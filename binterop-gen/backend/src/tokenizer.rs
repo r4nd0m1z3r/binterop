@@ -21,7 +21,11 @@ pub enum Type<'a> {
 
 #[derive(Debug)]
 pub enum Token<'a> {
-    Struct(&'a str, Vec<(Vec<(String, String)>, &'a str, Type<'a>)>),
+    Struct(
+        Vec<(String, String)>,
+        &'a str,
+        Vec<(Vec<(String, String)>, &'a str, Type<'a>)>,
+    ),
     Enum(&'a str, Vec<&'a str>),
     Union(&'a str, Vec<&'a str>),
     Include(PathBuf, VecDeque<Token<'a>>),
@@ -87,7 +91,7 @@ fn fields_parser<'a>(
 ) -> impl Parser<'a, &'a str, Vec<(Vec<(String, String)>, &'a str, Type<'a>)>, ParserExtra<'a>> {
     let field = attributes_parser()
         .or_not()
-        .map(|attributes| attributes.unwrap_or_default())
+        .map(Option::unwrap_or_default)
         .then(text::ident())
         .padded()
         .then_ignore(just(':'))
@@ -102,17 +106,20 @@ fn fields_parser<'a>(
 }
 
 fn struct_parser<'a>() -> impl Parser<'a, &'a str, Token<'a>, ParserExtra<'a>> {
-    let struct_decl = text::keyword("struct")
+    let struct_decl = attributes_parser()
+        .or_not()
+        .map(Option::unwrap_or_default)
+        .then_ignore(text::keyword("struct"))
         .padded()
-        .ignore_then(text::ident().padded())
-        .map(|name| Token::Struct(name, Vec::new()));
+        .then(text::ident().padded())
+        .map(|(attributes, name)| Token::Struct(attributes, name, Vec::new()));
 
     let fields = fields_parser('{', '}');
 
     struct_decl
         .then(fields)
         .map(|(mut struct_decl, fields)| {
-            if let Token::Struct(_, struct_fields) = &mut struct_decl {
+            if let Token::Struct(_, _, struct_fields) = &mut struct_decl {
                 *struct_fields = fields;
             } else {
                 unreachable!(

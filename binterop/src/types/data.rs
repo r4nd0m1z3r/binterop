@@ -9,9 +9,10 @@ use smallvec::SmallVec;
 pub struct DataType {
     pub name: String,
     pub fields: Vec<Field>,
+    pub attributes: Vec<(String, String)>,
 }
 impl DataType {
-    pub fn new(schema: &Schema, name: &str, field_data: &[(&str, Type, usize)]) -> Self {
+    pub fn new(schema: &Schema, name: &str, field_data: &[(&str, Type, usize)], attributes: &[(String, String)]) -> Self {
         let fields = field_data
             .iter()
             .copied()
@@ -28,13 +29,15 @@ impl DataType {
         Self {
             name: name.to_string(),
             fields,
+            attributes: attributes.to_vec(),
         }
     }
 
     pub fn default_with_name(name: &str) -> Self {
         Self {
             name: name.to_string(),
-            fields: vec![],
+            fields: Vec::new(),
+            attributes: Vec::new(),
         }
     }
 
@@ -57,6 +60,7 @@ impl DataType {
         Self {
             name: name.to_string(),
             fields,
+            attributes: Vec::new(),
         }
     }
 
@@ -64,6 +68,7 @@ impl DataType {
         Self {
             name: name.to_string(),
             fields: fields.to_vec(),
+            attributes: Vec::new(),
         }
     }
 

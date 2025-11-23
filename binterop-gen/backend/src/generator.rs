@@ -139,8 +139,12 @@ pub fn generate_schema<'a>(tokens: &VecDeque<Token<'a>>) -> Result<Schema, Strin
 
     for token in tokens {
         match token {
-            Token::Struct(struct_name, fields) => {
-                let mut data_type = DataType::default_with_name(struct_name);
+            Token::Struct(attributes, struct_name, fields) => {
+                let mut data_type = DataType {
+                    name: struct_name.to_string(),
+                    attributes: attributes.clone(),
+                    ..Default::default()
+                };
                 let mut current_offset = 0;
 
                 for (attributes, field_name, r#type) in fields {
