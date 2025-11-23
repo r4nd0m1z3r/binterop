@@ -15,3 +15,10 @@ struct Character {
     @[type_id="86dac3db-2dc7-40b5-b042-ff211c3b3adc", some_attrib="value"]
     position: Vector3
 }
+
+@[type_id="edf251a0-7070-47d8-b439-693493038beb"]
+union AllTypes {
+    Team,
+    Vector3,
+    Character,
+}

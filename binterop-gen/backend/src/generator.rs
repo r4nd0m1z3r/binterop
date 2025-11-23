@@ -194,8 +194,12 @@ pub fn generate_schema<'a>(tokens: &VecDeque<Token<'a>>) -> Result<Schema, Strin
 
                 schema.enums.push(enum_type);
             }
-            Token::Union(name, variants) => {
-                let mut union_type = UnionType::default_with_name(name);
+            Token::Union(attributes, name, variants) => {
+                let mut union_type = UnionType {
+                    name: name.to_string(),
+                    attributes: attributes.clone(),
+                    ..Default::default()
+                };
                 let possible_types = variants
                     .into_iter()
                     .map(|variant| {

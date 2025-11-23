@@ -27,7 +27,7 @@ pub enum Token<'a> {
         Vec<(Vec<(String, String)>, &'a str, Type<'a>)>,
     ),
     Enum(Vec<(String, String)>, &'a str, Vec<&'a str>),
-    Union(&'a str, Vec<&'a str>),
+    Union(Vec<(String, String)>, &'a str, Vec<&'a str>),
     Include(PathBuf, VecDeque<Token<'a>>),
     Function(&'a str, Vec<(&'a str, Type<'a>)>, Option<Type<'a>>),
 }
@@ -167,15 +167,18 @@ fn enum_parser<'a>() -> impl Parser<'a, &'a str, Token<'a>, ParserExtra<'a>> {
 }
 
 fn union_parser<'a>() -> impl Parser<'a, &'a str, Token<'a>, ParserExtra<'a>> {
-    let union_decl = text::keyword("union")
+    let union_decl = attributes_parser()
+        .or_not()
+        .map(Option::unwrap_or_default)
+        .then_ignore(text::keyword("union"))
         .padded()
-        .ignore_then(text::ident().padded())
-        .map(|name| Token::Union(name, Vec::new()));
+        .then(text::ident().padded())
+        .map(|(attributes, name)| Token::Union(attributes, name, Vec::new()));
 
     union_decl
         .then(variants_parser())
         .map(|(mut union_decl, variants)| {
-            if let Token::Union(_, union_variants) = &mut union_decl {
+            if let Token::Union(_, _, union_variants) = &mut union_decl {
                 *union_variants = variants;
             } else {
                 unreachable!(

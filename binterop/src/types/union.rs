@@ -8,20 +8,23 @@ use std::mem::{align_of, size_of};
 pub struct UnionType {
     pub name: String,
     pub possible_types: Vec<(usize, Type)>,
+    pub attributes: Vec<(String, String)>,
 }
 impl Default for UnionType {
     fn default() -> Self {
         Self {
             name: "".to_string(),
             possible_types: vec![],
+            attributes: Vec::new(),
         }
     }
 }
 impl UnionType {
-    pub fn new(name: &str, possible_types: &[(usize, Type)]) -> Self {
+    pub fn new(name: &str, possible_types: &[(usize, Type)], attributes: &[(String, String)]) -> Self {
         Self {
             name: name.to_string(),
             possible_types: possible_types.to_vec(),
+            attributes: attributes.to_vec(),
         }
     }
 
