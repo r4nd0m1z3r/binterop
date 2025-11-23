@@ -10,6 +10,7 @@ pub struct Field {
     pub type_index: usize,
     pub offset: usize,
     pub padding_size: usize,
+    pub attributes: Vec<(String, String)>,
 }
 impl Field {
     pub fn new(
@@ -18,6 +19,7 @@ impl Field {
         type_index: usize,
         offset: usize,
         padding_size: usize,
+        attributes: &[(String, String)],
     ) -> Self {
         Self {
             name: name.to_string(),
@@ -25,6 +27,7 @@ impl Field {
             type_index,
             offset,
             padding_size,
+            attributes: attributes.to_vec(),
         }
     }
 
@@ -35,6 +38,7 @@ impl Field {
             type_index: 0,
             offset: 0,
             padding_size: 0,
+            attributes: Vec::new(),
         }
     }
 

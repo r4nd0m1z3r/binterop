@@ -143,7 +143,7 @@ pub fn generate_schema<'a>(tokens: &VecDeque<Token<'a>>) -> Result<Schema, Strin
                 let mut data_type = DataType::default_with_name(struct_name);
                 let mut current_offset = 0;
 
-                for (field_name, r#type) in fields {
+                for (attributes, field_name, r#type) in fields {
                     if let tokenizer::Type::Named(type_name) = r#type
                         && type_name == struct_name
                     {
@@ -161,6 +161,7 @@ pub fn generate_schema<'a>(tokens: &VecDeque<Token<'a>>) -> Result<Schema, Strin
                         type_data.index,
                         current_offset,
                         0,
+                        attributes.as_slice(),
                     );
                     current_offset += type_data.size;
 

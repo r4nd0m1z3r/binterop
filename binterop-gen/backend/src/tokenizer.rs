@@ -21,7 +21,7 @@ pub enum Type<'a> {
 
 #[derive(Debug)]
 pub enum Token<'a> {
-    Struct(&'a str, Vec<(&'a str, Type<'a>)>),
+    Struct(&'a str, Vec<(Vec<(String, String)>, &'a str, Type<'a>)>),
     Enum(&'a str, Vec<&'a str>),
     Union(&'a str, Vec<&'a str>),
     Include(PathBuf, VecDeque<Token<'a>>),
@@ -63,15 +63,36 @@ fn type_parser<'a>() -> impl Parser<'a, &'a str, Type<'a>, ParserExtra<'a>> {
     })
 }
 
+fn attributes_parser<'a>() -> impl Parser<'a, &'a str, Vec<(String, String)>, ParserExtra<'a>> {
+    let string_parser = one_of("\"'")
+        .ignore_then(none_of("\"'").repeated().collect::<String>())
+        .then_ignore(one_of("\"'"));
+    let attribute = text::ident()
+        .map(ToString::to_string)
+        .then_ignore(just('='))
+        .then(string_parser)
+        .padded();
+    let attributes = attribute
+        .separated_by(just(','))
+        .collect()
+        .delimited_by(just("@[").padded(), just(']').padded())
+        .padded();
+
+    attributes
+}
+
 fn fields_parser<'a>(
     delimiter_start: char,
     delimiter_end: char,
-) -> impl Parser<'a, &'a str, Vec<(&'a str, Type<'a>)>, ParserExtra<'a>> {
-    let field = text::ident()
+) -> impl Parser<'a, &'a str, Vec<(Vec<(String, String)>, &'a str, Type<'a>)>, ParserExtra<'a>> {
+    let field = attributes_parser()
+        .or_not()
+        .map(|attributes| attributes.unwrap_or_default())
+        .then(text::ident())
         .padded()
         .then_ignore(just(':'))
         .then(type_parser())
-        .map(|(field_name, ty)| (field_name, ty));
+        .map(|((attributes, field_name), ty)| (attributes, field_name, ty));
 
     field
         .separated_by(just(','))
@@ -202,10 +223,12 @@ fn include_parser<'a>() -> impl Parser<'a, &'a str, Token<'a>, ParserExtra<'a>> 
 }
 
 fn function_parser<'a>() -> impl Parser<'a, &'a str, Token<'a>, ParserExtra<'a>> {
+    let args_parser = fields_parser('(', ')')
+        .map(|field| field.into_iter().map(|(_, name, ty)| (name, ty)).collect());
     text::keyword("fn")
         .padded()
         .ignore_then(text::ident())
-        .then(fields_parser('(', ')'))
+        .then(args_parser)
         .then(just("->").padded().ignore_then(type_parser()).or_not())
         .map(|((name, args), return_type)| Token::Function(name, args, return_type))
 }

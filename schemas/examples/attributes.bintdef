@@ -1,0 +1,10 @@
+struct Vector3 {
+    x: f32,
+    y: f32,
+    z: f32,
+}
+
+struct Character {
+    @[type_id="86dac3db-2dc7-40b5-b042-ff211c3b3adc", some_attrib="value"]
+    position: Vector3
+}
